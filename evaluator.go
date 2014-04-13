@@ -27,6 +27,19 @@ func parseRange(items chan item) evalFn {
 		if item.typ == itemText {
 			clusterName := item.val
 
+			item = <-items
+			if item.typ == itemClusterKey {
+				item = <-items
+
+				if item.typ == itemText {
+					clusterKey = item.val
+				} else {
+					panic("unimplemented")
+				}
+			} else if item.typ != itemEOF {
+				panic("unimplemented")
+			}
+
 			return func(state *rangeState) []string {
 				return clusterLookup(state, clusterName, clusterKey)
 			}
