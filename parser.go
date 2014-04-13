@@ -1,5 +1,7 @@
 package grange
 
+import "fmt"
+
 type Node interface {
 	merge(Node) Node
 }
@@ -62,6 +64,7 @@ func parseRange(items chan item) Node {
 	var subNode Node
 
 	for currentItem := range items {
+		//fmt.Printf("Parse item: %s\n", currentItem)
 		switch currentItem.typ {
 		case itemText:
 			if currentNode != nil {
@@ -136,7 +139,7 @@ func parseCluster(items chan item) Node {
 				//panic("unimplemented")
 			}
 		} else if item.typ != itemEOF {
-			panic("unimplemented")
+			return ErrorNode{fmt.Sprintf("Invalid token in query: %s", item)}
 		}
 
 		return ClusterLookupNode{clusterName, clusterKey}

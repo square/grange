@@ -37,6 +37,10 @@ func TestGroupExpand(t *testing.T) {
 	testEval(t, []string{"a.b", "a.c"}, "a.{b,c}", emptyState())
 }
 
+func TestNoExpandInClusters(t *testing.T) {
+	testError(t, "Invalid token in query: \"{\"", "%a-{b,c}")
+}
+
 func testError(t *testing.T, expected string, query string) {
 	_, err := evalRange(query, emptyState())
 
@@ -62,6 +66,13 @@ func singleCluster(name string, c cluster) *rangeState {
 		clusters: map[string]cluster{},
 	}
 	state.clusters[name] = c
+	return &state
+}
+
+func multiCluster(cs map[string]cluster) *rangeState {
+	state := rangeState{
+		clusters: cs,
+	}
 	return &state
 }
 
