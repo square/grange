@@ -33,6 +33,20 @@ func TestHas(t *testing.T) {
 	}))
 }
 
+func TestHasIntersect(t *testing.T) {
+	testEval(t, []string{"b"}, "has(TYPE;one)&b", multiCluster(map[string]cluster{
+		"a": cluster{"TYPE": []string{"one", "two"}},
+		"b": cluster{"TYPE": []string{"two", "one"}},
+		"c": cluster{"TYPE": []string{"three"}},
+	}))
+
+	testEval(t, []string{"b"}, "has(TYPE;two)&has(TYPE;three)", multiCluster(map[string]cluster{
+		"a": cluster{"TYPE": []string{"one", "two"}},
+		"b": cluster{"TYPE": []string{"two", "one", "three"}},
+		"c": cluster{"TYPE": []string{"three"}},
+	}))
+}
+
 func TestIntersect(t *testing.T) {
 	testEval(t, []string{"c"}, "%a:L&%a:R", singleCluster("a", cluster{
 		"L": []string{"b", "c"},
