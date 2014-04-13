@@ -19,6 +19,7 @@ func evalRange(input string, state *rangeState) (result []string, err error) {
 	if parseError != nil {
 		return nil, parseError
 	}
+	//fmt.Printf("%s\n", node)
 
 	return node.visit(state), nil
 }

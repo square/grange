@@ -37,7 +37,14 @@ func TestGroupExpand(t *testing.T) {
 	testEval(t, []string{"a.b", "a.c"}, "a.{b,c}", emptyState())
 }
 
-func TestNoExpandInClusters(t *testing.T) {
+func TestClusterExpand(t *testing.T) {
+	testEval(t, []string{"c", "d"}, "%a,%b", multiCluster(map[string]cluster{
+		"a": cluster{"CLUSTER": []string{"c"}},
+		"b": cluster{"CLUSTER": []string{"d"}},
+	}))
+}
+
+func TestNoExpandInClusterName(t *testing.T) {
 	testError(t, "Invalid token in query: \"{\"", "%a-{b,c}")
 }
 
