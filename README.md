@@ -36,6 +36,7 @@ Supported Syntax
 * `%{expr}:KEY`
 * `%cluster:{KEY1,KEY2}`
 * Expressions as values.
+* Extraneous whitespace.
 
 Development
 -----------
