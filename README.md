@@ -12,6 +12,31 @@ Goals
 * Good error messages for query language.
 * Fast. (Looking at you, `clusters`.)
 
+Supported Syntax
+----------------
+
+* `a.example.com`
+* `a.example.com,b.example.com`
+* `{a,b}.example.com`
+* `example.{com,org}`
+* `%cluster1`
+* `%cluster1:KEY`
+* `%cluster1,%cluster2`
+* `%cluster1&%cluster2`
+* `has(TYPE;mysql)`
+* `has(TYPE;mysql)&has(ENV;prod)`
+
+### Unsupported (yet)
+
+* `a1..9.example.com`
+* `@group`
+* `?example.com`
+* `clusters(example.com)`
+* `%{expr}`
+* `%{expr}:KEY`
+* `%cluster:{KEY1,KEY2}`
+* Expressions as values.
+
 Development
 -----------
 
