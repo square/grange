@@ -1,6 +1,9 @@
 package grange
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Node interface {
 	merge(Node) Node
@@ -31,6 +34,11 @@ type GroupNode struct {
 	tail Node
 }
 
+type HasNode struct {
+	key   string
+	match string
+}
+
 func (n GroupNode) merge(other Node) Node {
 	return GroupNode{n.head.merge(other), n.tail.merge(other)}
 }
@@ -55,6 +63,10 @@ func (n ErrorNode) merge(other Node) Node {
 	return n
 }
 
+func (n HasNode) merge(other Node) Node {
+	return n
+}
+
 func (n IntersectNode) merge(other Node) Node {
 	panic("how did you even get here")
 }
@@ -71,6 +83,37 @@ func parseRange(items chan item) Node {
 				currentNode = currentNode.merge(TextNode{currentItem.val})
 			} else {
 				currentNode = TextNode{currentItem.val}
+			}
+		case itemFunctionStart:
+			switch currentNode.(type) {
+			case TextNode:
+				functionName := currentNode.(TextNode).val
+
+				if functionName != "has" {
+					return ErrorNode{fmt.Sprintf("Unknown function: %s", functionName)}
+				}
+
+				paramItem := <-items
+				if paramItem.typ != itemText {
+					return ErrorNode{"Expecting text inside function call"}
+				} else {
+					functionParam := paramItem.val
+
+					closeItem := <-items
+					if closeItem.typ != itemFunctionClose {
+						return ErrorNode{"Expecting text inside function call"}
+					}
+
+					tokens := strings.Split(functionParam, ";")
+
+					if len(tokens) != 2 {
+						return ErrorNode{fmt.Sprintf("Invalid function parameter: %s", functionParam)}
+					}
+
+					currentNode = HasNode{tokens[0], tokens[1]}
+				}
+			default:
+				panic("Unimplemented. Treat as group?")
 			}
 		case itemCluster:
 			currentNode = parseCluster(items)

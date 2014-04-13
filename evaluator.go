@@ -67,6 +67,24 @@ func (n GroupNode) visit(state *rangeState) []string {
 	)
 }
 
+func (n HasNode) visit(state *rangeState) []string {
+	result := []string{}
+
+	for clusterName, cluster := range state.clusters {
+		values := cluster[n.key]
+
+		if values != nil {
+			for _, value := range values {
+				if value == n.match {
+					result = append(result, clusterName)
+				}
+			}
+		}
+	}
+
+	return result
+}
+
 func (n ErrorNode) visit(state *rangeState) []string {
 	panic("should not happen")
 }
@@ -87,6 +105,10 @@ func (n TextNode) String() string {
 	return fmt.Sprintf("%s", n.val)
 }
 
+func (n HasNode) String() string {
+	return fmt.Sprintf("has(%s;%s)", n.key, n.match)
+}
+
 func (n ErrorNode) findError() error {
 	return errors.New(n.message)
 }
@@ -101,6 +123,7 @@ func (n GroupNode) findError() error {
 	}
 	return n.tail.(EvalNode).findError()
 }
+func (HasNode) findError() error { return nil }
 
 func (n IntersectNode) findError() error {
 	err := n.left.(EvalNode).findError()

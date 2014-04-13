@@ -25,6 +25,14 @@ func TestErrorClusterName(t *testing.T) {
 	testError(t, "Invalid token in query: \"}\"", "%}")
 }
 
+func TestHas(t *testing.T) {
+	testEval(t, []string{"a", "b"}, "has(TYPE;one)", multiCluster(map[string]cluster{
+		"a": cluster{"TYPE": []string{"one", "two"}},
+		"b": cluster{"TYPE": []string{"two", "one"}},
+		"c": cluster{"TYPE": []string{"three"}},
+	}))
+}
+
 func TestIntersect(t *testing.T) {
 	testEval(t, []string{"c"}, "%a:L&%a:R", singleCluster("a", cluster{
 		"L": []string{"b", "c"},

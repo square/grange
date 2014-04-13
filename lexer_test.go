@@ -78,3 +78,12 @@ func TestGroup(t *testing.T) {
 		item{itemRightGroup, "}"},
 	)
 }
+
+func TestFunction(t *testing.T) {
+	testValid(t, "has(TYPE;db)",
+		item{itemText, "has"},
+		item{itemFunctionStart, "("},
+		item{itemText, "TYPE;db"},
+		item{itemFunctionClose, ")"},
+	)
+}
