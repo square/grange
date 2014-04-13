@@ -28,8 +28,17 @@ func TestIntersectError(t *testing.T) {
 	testError(t, "No left side provided for intersection", "&a")
 }
 
+func TestExpand(t *testing.T) {
+	testEval(t, []string{"a", "b"}, "a,b", emptyState())
+}
+
+func TestGroupExpand(t *testing.T) {
+	testEval(t, []string{"a.c", "b.c"}, "{a,b}.c", emptyState())
+	testEval(t, []string{"a.b", "a.c"}, "a.{b,c}", emptyState())
+}
+
 func testError(t *testing.T, expected string, query string) {
-	_, err := evalRange(query, &rangeState{})
+	_, err := evalRange(query, emptyState())
 
 	if err == nil {
 		t.Errorf("Expected error but none returned")
@@ -54,4 +63,8 @@ func singleCluster(name string, c cluster) *rangeState {
 	}
 	state.clusters[name] = c
 	return &state
+}
+
+func emptyState() *rangeState {
+	return &rangeState{}
 }

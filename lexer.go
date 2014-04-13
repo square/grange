@@ -32,6 +32,13 @@ func (l *lexer) run() {
 
 // Base state for the lexer
 func lexText(l *lexer) stateFn {
+	punctuation := map[string]itemType{}
+	punctuation[":"] = itemClusterKey
+	punctuation["&"] = itemIntersect
+	punctuation[","] = itemComma
+	punctuation["{"] = itemLeftGroup
+	punctuation["}"] = itemRightGroup
+
 	for {
 		if strings.HasPrefix(l.input[l.pos:], clusterMeta) {
 			if l.pos > l.start {
@@ -40,16 +47,12 @@ func lexText(l *lexer) stateFn {
 			return lexConst(clusterMeta, itemCluster)
 		}
 
-		if strings.HasPrefix(l.input[l.pos:], clusterKeyMeta) {
-			l.emitTextIfPresent()
+		for str, i := range punctuation {
+			if strings.HasPrefix(l.input[l.pos:], str) {
+				l.emitTextIfPresent()
 
-			return lexConst(clusterKeyMeta, itemClusterKey)
-		}
-
-		if strings.HasPrefix(l.input[l.pos:], intersectMeta) {
-			l.emitTextIfPresent()
-
-			return lexConst(intersectMeta, itemIntersect)
+				return lexConst(str, i)
+			}
 		}
 
 		if l.next() == eof {
@@ -64,6 +67,7 @@ func lexText(l *lexer) stateFn {
 const clusterMeta = "%"
 const clusterKeyMeta = ":"
 const intersectMeta = "&"
+const commaMeta = ","
 
 func lexConst(str string, t itemType) stateFn {
 	return func(l *lexer) stateFn {
@@ -103,6 +107,9 @@ const (
 	itemCluster
 	itemClusterKey
 	itemIntersect
+	itemComma
+	itemLeftGroup
+	itemRightGroup
 	itemEOF
 )
 

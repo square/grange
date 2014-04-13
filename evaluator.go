@@ -59,6 +59,13 @@ func (n TextNode) visit(state *rangeState) []string {
 	return []string{n.val}
 }
 
+func (n GroupNode) visit(state *rangeState) []string {
+	return append(
+		n.head.(EvalNode).visit(state),
+		n.tail.(EvalNode).visit(state)...,
+	)
+}
+
 func (n ErrorNode) visit(state *rangeState) []string {
 	panic("should not happen")
 }
@@ -86,6 +93,14 @@ func (n ErrorNode) findError() error {
 // TODO: Better way to do this?
 func (TextNode) findError() error          { return nil }
 func (ClusterLookupNode) findError() error { return nil }
+func (n GroupNode) findError() error {
+	err := n.head.(EvalNode).findError()
+	if err != nil {
+		return err
+	}
+	return n.tail.(EvalNode).findError()
+}
+
 func (n IntersectNode) findError() error {
 	err := n.left.(EvalNode).findError()
 	if err != nil {

@@ -1,6 +1,7 @@
 package grange
 
 type Node interface {
+	merge(Node) Node
 }
 
 type NullNode struct{}
@@ -23,15 +24,90 @@ type ErrorNode struct {
 	message string
 }
 
+type GroupNode struct {
+	head Node
+	tail Node
+}
+
+func (n GroupNode) merge(other Node) Node {
+	return GroupNode{n.head.merge(other), n.tail.merge(other)}
+}
+
+func (n TextNode) merge(other Node) Node {
+	switch other.(type) {
+	case TextNode:
+		return TextNode{n.val + other.(TextNode).val}
+	case GroupNode:
+		group := other.(GroupNode)
+		return GroupNode{n.merge(group.head), n.merge(group.tail)}
+	default:
+		return n
+	}
+}
+
+func (n ClusterLookupNode) merge(other Node) Node {
+	return n
+}
+
+func (n ErrorNode) merge(other Node) Node {
+	return n
+}
+
+func (n IntersectNode) merge(other Node) Node {
+	panic("how did you even get here")
+}
+
 func parseRange(items chan item) Node {
 	var currentNode Node
+	var subNode Node
 
-	for item := range items {
-		switch item.typ {
+	for currentItem := range items {
+		switch currentItem.typ {
 		case itemText:
-			currentNode = TextNode{item.val}
+			if currentNode != nil {
+				currentNode = currentNode.merge(TextNode{currentItem.val})
+			} else {
+				currentNode = TextNode{currentItem.val}
+			}
 		case itemCluster:
 			currentNode = parseCluster(items)
+		case itemLeftGroup:
+			// Find closing right group
+			stack := 1
+			subitems := make(chan item, 1000)
+			subparse := true
+			for subparse {
+				subItem := <-items
+
+				switch subItem.typ {
+				case itemEOF:
+					return ErrorNode{"No matching closing bracket"}
+				case itemLeftGroup:
+					stack++
+				case itemRightGroup:
+					stack--
+					if stack == 0 {
+						subitems <- item{itemEOF, ""}
+						close(subitems)
+						subNode = parseRange(subitems)
+						subparse = false
+					}
+				}
+
+				if !subparse {
+					break
+				}
+				subitems <- subItem
+			}
+			if currentNode != nil {
+				currentNode = currentNode.merge(subNode)
+			} else {
+				currentNode = subNode
+			}
+		case itemComma:
+			if currentNode != nil {
+				return GroupNode{currentNode, parseRange(items)}
+			}
 		case itemIntersect:
 			if currentNode == nil {
 				currentNode = ErrorNode{"No left side provided for intersection"}

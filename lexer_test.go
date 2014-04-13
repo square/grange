@@ -60,3 +60,21 @@ func TestLexIntersectWithGroup(t *testing.T) {
 		item{itemText, "KEY"},
 	)
 }
+
+func TestComma(t *testing.T) {
+	testValid(t, "a,b,c",
+		item{itemText, "a"},
+		item{itemComma, ","},
+		item{itemText, "b"},
+		item{itemComma, ","},
+		item{itemText, "c"},
+	)
+}
+
+func TestGroup(t *testing.T) {
+	testValid(t, "{a}",
+		item{itemLeftGroup, "{"},
+		item{itemText, "a"},
+		item{itemRightGroup, "}"},
+	)
+}
