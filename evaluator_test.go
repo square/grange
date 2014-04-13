@@ -17,6 +17,14 @@ func TestExplicitCluster(t *testing.T) {
 	}))
 }
 
+func TestErrorExplicitCluster(t *testing.T) {
+	testError(t, "Invalid token in query: \"}\"", "%a:}")
+}
+
+func TestErrorClusterName(t *testing.T) {
+	testError(t, "Invalid token in query: \"}\"", "%}")
+}
+
 func TestIntersect(t *testing.T) {
 	testEval(t, []string{"c"}, "%a:L&%a:R", singleCluster("a", cluster{
 		"L": []string{"b", "c"},

@@ -136,7 +136,7 @@ func parseCluster(items chan item) Node {
 			if item.typ == itemText {
 				clusterKey = item.val
 			} else {
-				panic("unimplemented")
+				return ErrorNode{fmt.Sprintf("Invalid token in query: %s", item)}
 			}
 		} else if item.typ == itemComma {
 			return GroupNode{
@@ -149,6 +149,6 @@ func parseCluster(items chan item) Node {
 
 		return ClusterLookupNode{clusterName, clusterKey}
 	} else {
-		panic("unimplemented")
+		return ErrorNode{fmt.Sprintf("Invalid token in query: %s", item)}
 	}
 }
