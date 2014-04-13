@@ -17,6 +17,13 @@ func TestExplicitCluster(t *testing.T) {
 	}))
 }
 
+func TestIntersect(t *testing.T) {
+	testEval(t, []string{"c"}, "%a:L&%a:R", singleCluster("a", cluster{
+		"L": []string{"b", "c"},
+		"R": []string{"c", "d"},
+	}))
+}
+
 func testEval(t *testing.T, expected []string, query string, state *rangeState) {
 	actual := evalRange(query, state)
 

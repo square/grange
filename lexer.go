@@ -37,15 +37,19 @@ func lexText(l *lexer) stateFn {
 			if l.pos > l.start {
 				return l.errorf("preceeding chars: %s", l.input[l.start:l.pos])
 			}
-			l.pos += len(clusterMeta)
-			l.emit(itemCluster)
+			return lexConst(clusterMeta, itemCluster)
 		}
 
 		if strings.HasPrefix(l.input[l.pos:], clusterKeyMeta) {
 			l.emitTextIfPresent()
 
-			l.pos += len(clusterKeyMeta)
-			l.emit(itemClusterKey)
+			return lexConst(clusterKeyMeta, itemClusterKey)
+		}
+
+		if strings.HasPrefix(l.input[l.pos:], intersectMeta) {
+			l.emitTextIfPresent()
+
+			return lexConst(intersectMeta, itemIntersect)
 		}
 
 		if l.next() == eof {
@@ -59,6 +63,15 @@ func lexText(l *lexer) stateFn {
 
 const clusterMeta = "%"
 const clusterKeyMeta = ":"
+const intersectMeta = "&"
+
+func lexConst(str string, t itemType) stateFn {
+	return func(l *lexer) stateFn {
+		l.pos += len(str)
+		l.emit(t)
+		return lexText
+	}
+}
 
 // -------------------
 // types and constants
@@ -89,6 +102,7 @@ const (
 	itemText
 	itemCluster
 	itemClusterKey
+	itemIntersect
 	itemEOF
 )
 

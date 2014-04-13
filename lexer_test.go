@@ -42,3 +42,21 @@ func TestClusterKey(t *testing.T) {
 		item{itemText, "KEY"},
 	)
 }
+func TestLexIntersect(t *testing.T) {
+	testValid(t, "a&b",
+		item{itemText, "a"},
+		item{itemIntersect, "&"},
+		item{itemText, "b"},
+	)
+}
+
+func TestLexIntersectWithGroup(t *testing.T) {
+	testValid(t, "a&%b:KEY",
+		item{itemText, "a"},
+		item{itemIntersect, "&"},
+		item{itemCluster, "%"},
+		item{itemText, "b"},
+		item{itemClusterKey, ":"},
+		item{itemText, "KEY"},
+	)
+}
