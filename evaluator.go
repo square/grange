@@ -1,6 +1,7 @@
 package grange
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -10,12 +11,16 @@ type rangeState struct {
 	clusters map[string]cluster
 }
 
-func evalRange(input string, state *rangeState) []string {
+func evalRange(input string, state *rangeState) (result []string, err error) {
 	_, items := lexRange("eval", input)
 
 	node := parseRange(items).(EvalNode)
+	parseError := node.findError()
+	if parseError != nil {
+		return nil, parseError
+	}
 
-	return node.visit(state)
+	return node.visit(state), nil
 }
 
 func (n ClusterLookupNode) visit(state *rangeState) []string {
@@ -54,6 +59,10 @@ func (n TextNode) visit(state *rangeState) []string {
 	return []string{n.val}
 }
 
+func (n ErrorNode) visit(state *rangeState) []string {
+	panic("should not happen")
+}
+
 func clusterLookup(state *rangeState, clusterName string, key string) []string {
 	return state.clusters[clusterName][key] // TODO: Error handling
 }
@@ -70,6 +79,22 @@ func (n TextNode) String() string {
 	return fmt.Sprintf("%s", n.val)
 }
 
+func (n ErrorNode) findError() error {
+	return errors.New(n.message)
+}
+
+// TODO: Better way to do this?
+func (TextNode) findError() error          { return nil }
+func (ClusterLookupNode) findError() error { return nil }
+func (n IntersectNode) findError() error {
+	err := n.left.(EvalNode).findError()
+	if err != nil {
+		return err
+	}
+	return n.right.(EvalNode).findError()
+}
+
 type EvalNode interface {
 	visit(*rangeState) []string
+	findError() error
 }

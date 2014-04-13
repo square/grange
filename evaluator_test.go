@@ -24,10 +24,26 @@ func TestIntersect(t *testing.T) {
 	}))
 }
 
-func testEval(t *testing.T, expected []string, query string, state *rangeState) {
-	actual := evalRange(query, state)
+func TestIntersectError(t *testing.T) {
+	testError(t, "No left side provided for intersection", "&a")
+}
 
-	if !reflect.DeepEqual(actual, expected) {
+func testError(t *testing.T, expected string, query string) {
+	_, err := evalRange(query, &rangeState{})
+
+	if err == nil {
+		t.Errorf("Expected error but none returned")
+	} else if err.Error() != expected {
+		t.Errorf("Different error returned.\n got: %s\nwant: %s", err.Error(), expected)
+	}
+}
+
+func testEval(t *testing.T, expected []string, query string, state *rangeState) {
+	actual, err := evalRange(query, state)
+
+	if err != nil {
+		t.Errorf("Expected result, got error: %s", err)
+	} else if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("evalRange\n got: %v\nwant: %v", actual, expected)
 	}
 }

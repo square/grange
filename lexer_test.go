@@ -24,7 +24,7 @@ func testValid(t *testing.T, input string, expected ...item) {
 	testLex(t, input, append(expected, item{itemEOF, ""})...)
 }
 
-func testError(t *testing.T, input string, expected string) {
+func testLexError(t *testing.T, input string, expected string) {
 	testLex(t, input, item{itemError, expected})
 }
 
@@ -33,7 +33,7 @@ func TestText(t *testing.T)  { testValid(t, "a.b", item{itemText, "a.b"}) }
 func TestCluster(t *testing.T) {
 	testValid(t, "%a", item{itemCluster, "%"}, item{itemText, "a"})
 }
-func TestPreamble(t *testing.T) { testError(t, "a%", "preceeding chars: a") }
+func TestPreamble(t *testing.T) { testLexError(t, "a%", "preceeding chars: a") }
 func TestClusterKey(t *testing.T) {
 	testValid(t, "%a:KEY",
 		item{itemCluster, "%"},

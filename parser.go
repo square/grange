@@ -19,6 +19,10 @@ type IntersectNode struct {
 	right Node
 }
 
+type ErrorNode struct {
+	message string
+}
+
 func parseRange(items chan item) Node {
 	var currentNode Node
 
@@ -29,11 +33,11 @@ func parseRange(items chan item) Node {
 		case itemCluster:
 			currentNode = parseCluster(items)
 		case itemIntersect:
-			if currentNode != nil {
-				return IntersectNode{currentNode, parseRange(items)}
-			} else {
-				panic("error")
+			if currentNode == nil {
+				currentNode = ErrorNode{"No left side provided for intersection"}
 			}
+
+			return IntersectNode{currentNode, parseRange(items)}
 		}
 	}
 	return currentNode
