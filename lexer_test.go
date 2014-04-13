@@ -28,7 +28,17 @@ func testError(t *testing.T, input string, expected string) {
 	testLex(t, input, item{itemError, expected})
 }
 
-func TestEmpty(t *testing.T)     { testValid(t, "") }
-func TestText(t *testing.T)      { testValid(t, "a.b", item{itemText, "a.b"}) }
-func TestCluster(t *testing.T)   { testValid(t, "%a", item{itemCluster, "a"}) }
-func TestNoCluster(t *testing.T) { testError(t, "%", "no cluster name") }
+func TestEmpty(t *testing.T) { testValid(t, "") }
+func TestText(t *testing.T)  { testValid(t, "a.b", item{itemText, "a.b"}) }
+func TestCluster(t *testing.T) {
+	testValid(t, "%a", item{itemCluster, "%"}, item{itemText, "a"})
+}
+func TestPreamble(t *testing.T) { testError(t, "a%", "preceeding chars: a") }
+func TestClusterKey(t *testing.T) {
+	testValid(t, "%a:KEY",
+		item{itemCluster, "%"},
+		item{itemText, "a"},
+		item{itemClusterKey, ":"},
+		item{itemText, "KEY"},
+	)
+}

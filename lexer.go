@@ -34,37 +34,31 @@ func (l *lexer) run() {
 func lexText(l *lexer) stateFn {
 	for {
 		if strings.HasPrefix(l.input[l.pos:], clusterMeta) {
-			return lexCluster
+			if l.pos > l.start {
+				return l.errorf("preceeding chars: %s", l.input[l.start:l.pos])
+			}
+			l.pos += len(clusterMeta)
+			l.emit(itemCluster)
 		}
+
+		if strings.HasPrefix(l.input[l.pos:], clusterKeyMeta) {
+			l.emitTextIfPresent()
+
+			l.pos += len(clusterKeyMeta)
+			l.emit(itemClusterKey)
+		}
+
 		if l.next() == eof {
 			break
 		}
 	}
-	if l.pos > l.start {
-		l.emit(itemText)
-	}
+	l.emitTextIfPresent()
 	l.emit(itemEOF)
 	return nil
 }
 
-// A cluster reference is text prefixed by a constant identifier
 const clusterMeta = "%"
-
-func lexCluster(l *lexer) stateFn {
-	l.pos += len(clusterMeta)
-	l.ignore()
-	for {
-		if l.next() == eof {
-			break
-		}
-	}
-	if l.pos > l.start {
-		l.emit(itemCluster)
-	} else {
-		return l.errorf("no cluster name")
-	}
-	return lexText
-}
+const clusterKeyMeta = ":"
 
 // -------------------
 // types and constants
@@ -94,6 +88,7 @@ const (
 	itemError itemType = iota
 	itemText
 	itemCluster
+	itemClusterKey
 	itemEOF
 )
 
@@ -107,7 +102,7 @@ func (i item) String() string {
 	case itemEOF:
 		return "EOF"
 	case itemCluster:
-		return "%" + i.val
+		return i.val
 	case itemError:
 		return i.val
 	}
@@ -120,6 +115,12 @@ func (i item) String() string {
 // ------------------------
 // generic helper functions
 // ------------------------
+
+func (l *lexer) emitTextIfPresent() {
+	if l.pos > l.start {
+		l.emit(itemText)
+	}
+}
 
 // emit passes an item back to the client.
 func (l *lexer) emit(t itemType) {
