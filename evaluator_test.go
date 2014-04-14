@@ -6,13 +6,13 @@ import (
 )
 
 func TestDefaultCluster(t *testing.T) {
-	testEval(t, []string{"b", "c"}, "%a", singleCluster("a", cluster{
+	testEval(t, []string{"b", "c"}, "%a", singleCluster("a", Cluster{
 		"CLUSTER": []string{"b", "c"},
 	}))
 }
 
 func TestExplicitCluster(t *testing.T) {
-	testEval(t, []string{"b", "c"}, "%a:NODES", singleCluster("a", cluster{
+	testEval(t, []string{"b", "c"}, "%a:NODES", singleCluster("a", Cluster{
 		"NODES": []string{"b", "c"},
 	}))
 }
@@ -26,29 +26,29 @@ func TestErrorClusterName(t *testing.T) {
 }
 
 func TestHas(t *testing.T) {
-	testEval(t, []string{"a", "b"}, "has(TYPE;one)", multiCluster(map[string]cluster{
-		"a": cluster{"TYPE": []string{"one", "two"}},
-		"b": cluster{"TYPE": []string{"two", "one"}},
-		"c": cluster{"TYPE": []string{"three"}},
+	testEval(t, []string{"a", "b"}, "has(TYPE;one)", multiCluster(map[string]Cluster{
+		"a": Cluster{"TYPE": []string{"one", "two"}},
+		"b": Cluster{"TYPE": []string{"two", "one"}},
+		"c": Cluster{"TYPE": []string{"three"}},
 	}))
 }
 
 func TestHasIntersect(t *testing.T) {
-	testEval(t, []string{"b"}, "has(TYPE;one)&b", multiCluster(map[string]cluster{
-		"a": cluster{"TYPE": []string{"one", "two"}},
-		"b": cluster{"TYPE": []string{"two", "one"}},
-		"c": cluster{"TYPE": []string{"three"}},
+	testEval(t, []string{"b"}, "has(TYPE;one)&b", multiCluster(map[string]Cluster{
+		"a": Cluster{"TYPE": []string{"one", "two"}},
+		"b": Cluster{"TYPE": []string{"two", "one"}},
+		"c": Cluster{"TYPE": []string{"three"}},
 	}))
 
-	testEval(t, []string{"b"}, "has(TYPE;two)&has(TYPE;three)", multiCluster(map[string]cluster{
-		"a": cluster{"TYPE": []string{"one", "two"}},
-		"b": cluster{"TYPE": []string{"two", "one", "three"}},
-		"c": cluster{"TYPE": []string{"three"}},
+	testEval(t, []string{"b"}, "has(TYPE;two)&has(TYPE;three)", multiCluster(map[string]Cluster{
+		"a": Cluster{"TYPE": []string{"one", "two"}},
+		"b": Cluster{"TYPE": []string{"two", "one", "three"}},
+		"c": Cluster{"TYPE": []string{"three"}},
 	}))
 }
 
 func TestIntersect(t *testing.T) {
-	testEval(t, []string{"c"}, "%a:L&%a:R", singleCluster("a", cluster{
+	testEval(t, []string{"c"}, "%a:L&%a:R", singleCluster("a", Cluster{
 		"L": []string{"b", "c"},
 		"R": []string{"c", "d"},
 	}))
@@ -68,9 +68,9 @@ func TestGroupExpand(t *testing.T) {
 }
 
 func TestClusterExpand(t *testing.T) {
-	testEval(t, []string{"c", "d"}, "%a,%b", multiCluster(map[string]cluster{
-		"a": cluster{"CLUSTER": []string{"c"}},
-		"b": cluster{"CLUSTER": []string{"d"}},
+	testEval(t, []string{"c", "d"}, "%a,%b", multiCluster(map[string]Cluster{
+		"a": Cluster{"CLUSTER": []string{"c"}},
+		"b": Cluster{"CLUSTER": []string{"d"}},
 	}))
 }
 
@@ -88,7 +88,7 @@ func testError(t *testing.T, expected string, query string) {
 	}
 }
 
-func testEval(t *testing.T, expected []string, query string, state *rangeState) {
+func testEval(t *testing.T, expected []string, query string, state *RangeState) {
 	actual, err := evalRange(query, state)
 
 	if err != nil {
@@ -98,21 +98,21 @@ func testEval(t *testing.T, expected []string, query string, state *rangeState) 
 	}
 }
 
-func singleCluster(name string, c cluster) *rangeState {
-	state := rangeState{
-		clusters: map[string]cluster{},
+func singleCluster(name string, c Cluster) *RangeState {
+	state := RangeState{
+		clusters: map[string]Cluster{},
 	}
 	state.clusters[name] = c
 	return &state
 }
 
-func multiCluster(cs map[string]cluster) *rangeState {
-	state := rangeState{
+func multiCluster(cs map[string]Cluster) *RangeState {
+	state := RangeState{
 		clusters: cs,
 	}
 	return &state
 }
 
-func emptyState() *rangeState {
-	return &rangeState{}
+func emptyState() *RangeState {
+	return &RangeState{}
 }

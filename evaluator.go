@@ -5,13 +5,27 @@ import (
 	"fmt"
 )
 
-type cluster map[string][]string
+type Cluster map[string][]string
 
-type rangeState struct {
-	clusters map[string]cluster
+type RangeState struct {
+	clusters map[string]Cluster
 }
 
-func evalRange(input string, state *rangeState) (result []string, err error) {
+func AddCluster(state RangeState, name string, c Cluster) {
+  state.clusters[name] = c
+}
+
+func NewState() RangeState {
+  return RangeState {
+    clusters: map[string]Cluster{},
+  }
+}
+
+func EvalRange(input string, state *RangeState) (result []string, err error) {
+  return evalRange(input, state)
+}
+
+func evalRange(input string, state *RangeState) (result []string, err error) {
 	_, items := lexRange("eval", input)
 
 	node := parseRange(items).(EvalNode)
@@ -24,11 +38,11 @@ func evalRange(input string, state *rangeState) (result []string, err error) {
 	return node.visit(state), nil
 }
 
-func (n ClusterLookupNode) visit(state *rangeState) []string {
+func (n ClusterLookupNode) visit(state *RangeState) []string {
 	return clusterLookup(state, n.name, n.key)
 }
 
-func (n IntersectNode) visit(state *rangeState) []string {
+func (n IntersectNode) visit(state *RangeState) []string {
 	result := []string{}
 	leftSide := n.left.(EvalNode).visit(state)
 
@@ -56,18 +70,18 @@ func (n IntersectNode) visit(state *rangeState) []string {
 	return result
 }
 
-func (n TextNode) visit(state *rangeState) []string {
+func (n TextNode) visit(state *RangeState) []string {
 	return []string{n.val}
 }
 
-func (n GroupNode) visit(state *rangeState) []string {
+func (n GroupNode) visit(state *RangeState) []string {
 	return append(
 		n.head.(EvalNode).visit(state),
 		n.tail.(EvalNode).visit(state)...,
 	)
 }
 
-func (n HasNode) visit(state *rangeState) []string {
+func (n HasNode) visit(state *RangeState) []string {
 	result := []string{}
 
 	for clusterName, cluster := range state.clusters {
@@ -85,11 +99,11 @@ func (n HasNode) visit(state *rangeState) []string {
 	return result
 }
 
-func (n ErrorNode) visit(state *rangeState) []string {
+func (n ErrorNode) visit(state *RangeState) []string {
 	panic("should not happen")
 }
 
-func clusterLookup(state *rangeState, clusterName string, key string) []string {
+func clusterLookup(state *RangeState, clusterName string, key string) []string {
 	return state.clusters[clusterName][key] // TODO: Error handling
 }
 
@@ -134,6 +148,6 @@ func (n IntersectNode) findError() error {
 }
 
 type EvalNode interface {
-	visit(*rangeState) []string
+	visit(*RangeState) []string
 	findError() error
 }
