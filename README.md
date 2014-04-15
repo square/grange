@@ -22,7 +22,8 @@ Supported Syntax
 * `%cluster1`
 * `%cluster1:KEY`
 * `%cluster1,%cluster2`
-* `%cluster1&%cluster2`
+* `%cluster1 & %cluster2`
+* `%cluster1 - %cluster2`
 * `has(TYPE;mysql)`
 * `has(TYPE;mysql)&has(ENV;prod)`
 * `$KEY`

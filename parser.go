@@ -25,6 +25,11 @@ type IntersectNode struct {
 	right Node
 }
 
+type ExcludeNode struct {
+	left  Node
+	right Node
+}
+
 type ErrorNode struct {
 	message string
 }
@@ -76,6 +81,10 @@ func (n HasNode) merge(other Node) Node {
 }
 
 func (n IntersectNode) merge(other Node) Node {
+	panic("how did you even get here")
+}
+
+func (n ExcludeNode) merge(other Node) Node {
 	panic("how did you even get here")
 }
 
@@ -176,6 +185,12 @@ func parseRange(items chan item) Node {
 			}
 
 			return IntersectNode{currentNode, parseRange(items)}
+		case itemExclude:
+			if currentNode == nil {
+				currentNode = ErrorNode{"No left side provided for exclusion"}
+			}
+
+			return ExcludeNode{currentNode, parseRange(items)}
 		}
 	}
 	return currentNode

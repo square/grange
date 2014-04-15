@@ -94,3 +94,13 @@ func TestLocalClusterKey(t *testing.T) {
 		item{itemText, "ALL"},
 	)
 }
+
+func TestLexExclude(t *testing.T) {
+	testValid(t, "$ALL - $DOWN",
+		item{itemLocalClusterKey, "$"},
+		item{itemText, "ALL"},
+		item{itemExclude, "-"},
+		item{itemLocalClusterKey, "$"},
+		item{itemText, "DOWN"},
+	)
+}

@@ -91,6 +91,16 @@ func TestSelfReferentialCluster(t *testing.T) {
 	}))
 }
 
+func TestSelfReferentialClusterExpression(t *testing.T) {
+	testEval(t, []string{"a", "c"}, "%a", multiCluster(map[string]Cluster{
+		"a": Cluster{
+			"CLUSTER": []string{"$ALL - $DOWN"},
+			"ALL":     []string{"a", "b", "c"},
+			"DOWN":    []string{"b"},
+		},
+	}))
+}
+
 func testError(t *testing.T, expected string, query string) {
 	_, err := evalRange(query, emptyState())
 

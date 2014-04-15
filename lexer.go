@@ -12,7 +12,7 @@ import (
 func lexRange(name, input string) (*lexer, chan item) {
 	l := &lexer{
 		name:  name,
-		input: strings.Replace(input, " ", "", -1), // TODO: Probably terrible?
+		input: input,
 		items: make(chan item),
 	}
 	go l.run()
@@ -56,6 +56,18 @@ func lexText(l *lexer) stateFn {
 
 				return lexConst(str, i)
 			}
+		}
+
+		if strings.HasPrefix(l.input[l.pos:], " ") {
+			l.emitTextIfPresent()
+			l.next()
+			l.ignore()
+			return lexText
+		}
+
+		// This is weird because - is not a terminator, unlike other punctuation
+		if strings.HasPrefix(l.input[l.start:], "-") {
+			return lexConst("-", itemExclude)
 		}
 
 		if l.next() == eof {
@@ -117,6 +129,7 @@ const (
 	itemFunctionClose
 	itemParam
 	itemLocalClusterKey
+	itemExclude
 	itemEOF
 )
 

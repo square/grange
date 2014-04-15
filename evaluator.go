@@ -86,6 +86,29 @@ func (n IntersectNode) visit(state *RangeState, context *evalContext) []string {
 	return result
 }
 
+func (n ExcludeNode) visit(state *RangeState, context *evalContext) []string {
+	result := []string{}
+	leftSide := n.left.(EvalNode).visit(state, context)
+
+	if len(leftSide) == 0 {
+		// Optimization: no need to compute right side if left side is empty
+		return result
+	}
+
+	rightSide := n.right.(EvalNode).visit(state, context)
+
+	set := map[string]bool{}
+	for _, x := range rightSide {
+		set[x] = true
+	}
+	for _, y := range leftSide {
+		if !set[y] {
+			result = append(result, y)
+		}
+	}
+	return result
+}
+
 func (n TextNode) visit(state *RangeState, context *evalContext) []string {
 	return []string{n.val}
 }
@@ -136,6 +159,10 @@ func (n IntersectNode) String() string {
 	return fmt.Sprintf("<%s & %s>", n.left, n.right)
 }
 
+func (n ExcludeNode) String() string {
+	return fmt.Sprintf("<%s - %s>", n.left, n.right)
+}
+
 func (n ClusterLookupNode) String() string {
 	return fmt.Sprintf("%%%s:%s", n.name, n.key)
 }
@@ -170,6 +197,14 @@ func (n GroupNode) findError() error {
 func (HasNode) findError() error { return nil }
 
 func (n IntersectNode) findError() error {
+	err := n.left.(EvalNode).findError()
+	if err != nil {
+		return err
+	}
+	return n.right.(EvalNode).findError()
+}
+
+func (n ExcludeNode) findError() error {
 	err := n.left.(EvalNode).findError()
 	if err != nil {
 		return err
