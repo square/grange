@@ -35,6 +35,7 @@ func (l *lexer) run() {
 func lexText(l *lexer) stateFn {
 	punctuation := map[string]itemType{}
 	punctuation["&"] = itemIntersect
+	punctuation["-"] = itemExclude
 	punctuation[","] = itemComma
 	punctuation["{"] = itemLeftGroup
 	punctuation["}"] = itemRightGroup
@@ -76,11 +77,6 @@ func lexText(l *lexer) stateFn {
 			l.next()
 			l.ignore()
 			return lexText
-		}
-
-		// This is weird because - is not a terminator, unlike other punctuation
-		if strings.HasPrefix(l.input[l.start:], "-") {
-			return lexConst("-", itemExclude)
 		}
 
 		if l.next() == eof {
