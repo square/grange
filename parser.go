@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// TODO: Don't export these node types
 type Node interface {
 	merge(Node) Node
 }
