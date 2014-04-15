@@ -39,6 +39,10 @@ type HasNode struct {
 	match string
 }
 
+type LocalClusterLookupNode struct {
+	key string
+}
+
 func (n GroupNode) merge(other Node) Node {
 	return GroupNode{n.head.merge(other), n.tail.merge(other)}
 }
@@ -56,6 +60,10 @@ func (n TextNode) merge(other Node) Node {
 }
 
 func (n ClusterLookupNode) merge(other Node) Node {
+	return n
+}
+
+func (n LocalClusterLookupNode) merge(other Node) Node {
 	return n
 }
 
@@ -117,6 +125,14 @@ func parseRange(items chan item) Node {
 			}
 		case itemCluster:
 			currentNode = parseCluster(items)
+		case itemLocalClusterKey:
+			subItem := <-items
+
+			if subItem.typ == itemText {
+				currentNode = LocalClusterLookupNode{subItem.val}
+			} else {
+				return ErrorNode{"$ must be followed by text"}
+			}
 		case itemLeftGroup:
 			// Find closing right group
 			stack := 1

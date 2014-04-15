@@ -87,3 +87,10 @@ func TestFunction(t *testing.T) {
 		item{itemFunctionClose, ")"},
 	)
 }
+
+func TestLocalClusterKey(t *testing.T) {
+	testValid(t, "$ALL",
+		item{itemLocalClusterKey, "$"},
+		item{itemText, "ALL"},
+	)
+}

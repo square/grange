@@ -17,6 +17,13 @@ func TestExplicitCluster(t *testing.T) {
 	}))
 }
 
+func TestClusterMissing(t *testing.T) {
+	testEval(t, []string{}, "%a", emptyState())
+}
+func TestClusterMissingKey(t *testing.T) {
+	testEval(t, []string{}, "%a:NODES", singleCluster("a", Cluster{}))
+}
+
 func TestErrorExplicitCluster(t *testing.T) {
 	testError(t, "Invalid token in query: \"}\"", "%a:}")
 }
@@ -76,6 +83,12 @@ func TestClusterExpand(t *testing.T) {
 
 func TestNoExpandInClusterName(t *testing.T) {
 	testError(t, "Invalid token in query: \"{\"", "%a-{b,c}")
+}
+
+func TestSelfReferentialCluster(t *testing.T) {
+	testEval(t, []string{"b"}, "%a", multiCluster(map[string]Cluster{
+		"a": Cluster{"CLUSTER": []string{"$ALL"}, "ALL": []string{"b"}},
+	}))
 }
 
 func testError(t *testing.T, expected string, query string) {

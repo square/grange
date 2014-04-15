@@ -40,6 +40,7 @@ func lexText(l *lexer) stateFn {
 	punctuation["}"] = itemRightGroup
 	punctuation["("] = itemFunctionStart
 	punctuation[")"] = itemFunctionClose
+	punctuation["$"] = itemLocalClusterKey
 
 	for {
 		if strings.HasPrefix(l.input[l.pos:], clusterMeta) {
@@ -115,6 +116,7 @@ const (
 	itemFunctionStart
 	itemFunctionClose
 	itemParam
+	itemLocalClusterKey
 	itemEOF
 )
 

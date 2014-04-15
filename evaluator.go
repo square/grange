@@ -11,21 +11,29 @@ type RangeState struct {
 	clusters map[string]Cluster
 }
 
+type evalContext struct {
+	currentClusterName string
+}
+
 func AddCluster(state RangeState, name string, c Cluster) {
-  state.clusters[name] = c
+	state.clusters[name] = c
 }
 
 func NewState() RangeState {
-  return RangeState {
-    clusters: map[string]Cluster{},
-  }
+	return RangeState{
+		clusters: map[string]Cluster{},
+	}
 }
 
 func EvalRange(input string, state *RangeState) (result []string, err error) {
-  return evalRange(input, state)
+	return evalRange(input, state)
 }
 
 func evalRange(input string, state *RangeState) (result []string, err error) {
+	return evalRangeWithContext(input, state, &evalContext{})
+}
+
+func evalRangeWithContext(input string, state *RangeState, context *evalContext) (result []string, err error) {
 	_, items := lexRange("eval", input)
 
 	node := parseRange(items).(EvalNode)
@@ -35,23 +43,31 @@ func evalRange(input string, state *RangeState) (result []string, err error) {
 	}
 	//fmt.Printf("%s\n", node)
 
-	return node.visit(state), nil
+	return node.visit(state, context), nil
 }
 
-func (n ClusterLookupNode) visit(state *RangeState) []string {
+func (n ClusterLookupNode) visit(state *RangeState, _ *evalContext) []string {
 	return clusterLookup(state, n.name, n.key)
 }
 
-func (n IntersectNode) visit(state *RangeState) []string {
+func (n LocalClusterLookupNode) visit(state *RangeState, context *evalContext) []string {
+	if context.currentClusterName == "" {
+		panic("Unimplemented")
+	}
+
+	return clusterLookup(state, context.currentClusterName, n.key)
+}
+
+func (n IntersectNode) visit(state *RangeState, context *evalContext) []string {
 	result := []string{}
-	leftSide := n.left.(EvalNode).visit(state)
+	leftSide := n.left.(EvalNode).visit(state, context)
 
 	if len(leftSide) == 0 {
 		// Optimization: no need to compute right side if left side is empty
 		return result
 	}
 
-	rightSide := n.right.(EvalNode).visit(state)
+	rightSide := n.right.(EvalNode).visit(state, context)
 
 	set := map[string]bool{}
 	for _, x := range leftSide {
@@ -70,18 +86,18 @@ func (n IntersectNode) visit(state *RangeState) []string {
 	return result
 }
 
-func (n TextNode) visit(state *RangeState) []string {
+func (n TextNode) visit(state *RangeState, context *evalContext) []string {
 	return []string{n.val}
 }
 
-func (n GroupNode) visit(state *RangeState) []string {
+func (n GroupNode) visit(state *RangeState, context *evalContext) []string {
 	return append(
-		n.head.(EvalNode).visit(state),
-		n.tail.(EvalNode).visit(state)...,
+		n.head.(EvalNode).visit(state, context),
+		n.tail.(EvalNode).visit(state, context)...,
 	)
 }
 
-func (n HasNode) visit(state *RangeState) []string {
+func (n HasNode) visit(state *RangeState, context *evalContext) []string {
 	result := []string{}
 
 	for clusterName, cluster := range state.clusters {
@@ -99,12 +115,21 @@ func (n HasNode) visit(state *RangeState) []string {
 	return result
 }
 
-func (n ErrorNode) visit(state *RangeState) []string {
+func (n ErrorNode) visit(state *RangeState, context *evalContext) []string {
 	panic("should not happen")
 }
 
 func clusterLookup(state *RangeState, clusterName string, key string) []string {
-	return state.clusters[clusterName][key] // TODO: Error handling
+	clusterExp := state.clusters[clusterName][key] // TODO: Error handling
+	result := []string{}
+
+	for _, value := range clusterExp {
+		expansion, _ := evalRangeWithContext(value, state, &evalContext{
+			currentClusterName: clusterName,
+		})
+		result = append(result, expansion...)
+	}
+	return result
 }
 
 func (n IntersectNode) String() string {
@@ -113,6 +138,10 @@ func (n IntersectNode) String() string {
 
 func (n ClusterLookupNode) String() string {
 	return fmt.Sprintf("%%%s:%s", n.name, n.key)
+}
+
+func (n LocalClusterLookupNode) String() string {
+	return fmt.Sprintf("$%s", n.key)
 }
 
 func (n TextNode) String() string {
@@ -128,8 +157,9 @@ func (n ErrorNode) findError() error {
 }
 
 // TODO: Better way to do this?
-func (TextNode) findError() error          { return nil }
-func (ClusterLookupNode) findError() error { return nil }
+func (TextNode) findError() error               { return nil }
+func (ClusterLookupNode) findError() error      { return nil }
+func (LocalClusterLookupNode) findError() error { return nil }
 func (n GroupNode) findError() error {
 	err := n.head.(EvalNode).findError()
 	if err != nil {
@@ -148,6 +178,6 @@ func (n IntersectNode) findError() error {
 }
 
 type EvalNode interface {
-	visit(*RangeState) []string
+	visit(*RangeState, *evalContext) []string
 	findError() error
 }
