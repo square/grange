@@ -38,10 +38,12 @@ func lexText(l *lexer) stateFn {
 	punctuation[","] = itemComma
 	punctuation["{"] = itemLeftGroup
 	punctuation["}"] = itemRightGroup
-	punctuation["("] = itemFunctionStart
-	punctuation[")"] = itemFunctionClose
 
 	for {
+		if strings.HasPrefix(l.input[l.pos:], "(") {
+			return lexFunction
+		}
+
 		if strings.HasPrefix(l.input[l.pos:], "@") {
 			return lexIdentifier("@", itemGroupLookup)
 		}
@@ -114,6 +116,28 @@ func lexIdentifier(str string, t itemType) stateFn {
 	}
 }
 
+func lexFunction(l *lexer) stateFn {
+	l.emit(itemFunctionName)
+	l.pos += len("(")
+	l.ignore()
+
+	for {
+		if strings.HasPrefix(l.input[l.pos:], ")") {
+			l.emit(itemFunctionParam)
+			l.pos += len(")")
+			l.ignore()
+
+			return lexText
+		}
+
+		if l.next() == eof {
+			break
+		}
+	}
+
+	return lexText
+}
+
 // -------------------
 // types and constants
 // -------------------
@@ -147,8 +171,8 @@ const (
 	itemComma
 	itemLeftGroup
 	itemRightGroup
-	itemFunctionStart
-	itemFunctionClose
+	itemFunctionName
+	itemFunctionParam
 	itemParam
 	itemLocalClusterKey
 	itemExclude

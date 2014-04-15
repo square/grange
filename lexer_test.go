@@ -77,10 +77,8 @@ func TestGroup(t *testing.T) {
 
 func TestFunction(t *testing.T) {
 	testValid(t, "has(TYPE;db)",
-		item{itemText, "has"},
-		item{itemFunctionStart, "("},
-		item{itemText, "TYPE;db"},
-		item{itemFunctionClose, ")"},
+		item{itemFunctionName, "has"},
+		item{itemFunctionParam, "TYPE;db"},
 	)
 }
 

@@ -112,36 +112,25 @@ func parseRange(items chan item) Node {
 			}
 		case itemGroupLookup:
 			currentNode = GroupLookupNode{currentItem.val}
-		case itemFunctionStart:
-			switch currentNode.(type) {
-			case TextNode:
-				functionName := currentNode.(TextNode).val
+		case itemFunctionName:
+			if currentItem.val != "has" {
+				return ErrorNode{fmt.Sprintf("Unknown function: %s", currentItem.val)}
+			}
 
-				if functionName != "has" {
-					return ErrorNode{fmt.Sprintf("Unknown function: %s", functionName)}
+			paramItem := <-items
+
+			if paramItem.typ != itemFunctionParam {
+				return ErrorNode{fmt.Sprintf("Expecting parameter to function %s", currentItem.val)}
+			} else {
+				functionParam := paramItem.val
+
+				tokens := strings.Split(functionParam, ";")
+
+				if len(tokens) != 2 {
+					return ErrorNode{fmt.Sprintf("Invalid function parameter: %s", functionParam)}
 				}
 
-				paramItem := <-items
-				if paramItem.typ != itemText {
-					return ErrorNode{"Expecting text inside function call"}
-				} else {
-					functionParam := paramItem.val
-
-					closeItem := <-items
-					if closeItem.typ != itemFunctionClose {
-						return ErrorNode{"Expecting text inside function call"}
-					}
-
-					tokens := strings.Split(functionParam, ";")
-
-					if len(tokens) != 2 {
-						return ErrorNode{fmt.Sprintf("Invalid function parameter: %s", functionParam)}
-					}
-
-					currentNode = HasNode{tokens[0], tokens[1]}
-				}
-			default:
-				panic("Unimplemented. Treat as group?")
+				currentNode = HasNode{tokens[0], tokens[1]}
 			}
 		case itemCluster:
 			currentNode = ClusterLookupNode{currentItem.val, "CLUSTER"}
