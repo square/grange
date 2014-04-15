@@ -9,13 +9,18 @@ type Cluster map[string][]string
 
 type RangeState struct {
 	clusters map[string]Cluster
+	groups   Cluster
 }
 
 type evalContext struct {
 	currentClusterName string
 }
 
-func AddCluster(state RangeState, name string, c Cluster) {
+func SetGroups(state *RangeState, c Cluster) {
+	state.groups = c
+}
+
+func AddCluster(state *RangeState, name string, c Cluster) {
 	state.clusters[name] = c
 }
 
@@ -56,6 +61,10 @@ func (n LocalClusterLookupNode) visit(state *RangeState, context *evalContext) [
 	}
 
 	return clusterLookup(state, context.currentClusterName, n.key)
+}
+
+func (n GroupLookupNode) visit(state *RangeState, _ *evalContext) []string {
+	return state.groups[n.name]
 }
 
 func (n IntersectNode) visit(state *RangeState, context *evalContext) []string {
@@ -165,6 +174,10 @@ func (n ExcludeNode) String() string {
 
 func (n ClusterLookupNode) String() string {
 	return fmt.Sprintf("%%%s:%s", n.name, n.key)
+}
+
+func (n GroupLookupNode) String() string {
+	return fmt.Sprintf("@%s", n.name)
 }
 
 func (n LocalClusterLookupNode) String() string {

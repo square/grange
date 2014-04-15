@@ -101,6 +101,10 @@ func TestSelfReferentialClusterExpression(t *testing.T) {
 	}))
 }
 
+func TestGroups(t *testing.T) {
+	testEval(t, []string{"a", "b"}, "@dc", singleGroup("dc", "a", "b"))
+}
+
 func testError(t *testing.T, expected string, query string) {
 	_, err := evalRange(query, emptyState())
 
@@ -126,6 +130,14 @@ func singleCluster(name string, c Cluster) *RangeState {
 		clusters: map[string]Cluster{},
 	}
 	state.clusters[name] = c
+	return &state
+}
+
+func singleGroup(name string, members ...string) *RangeState {
+	state := RangeState{
+		groups: map[string][]string{},
+	}
+	state.groups[name] = members
 	return &state
 }
 

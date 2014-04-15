@@ -27,13 +27,13 @@ Supported Syntax
 * `has(TYPE;mysql)`
 * `has(TYPE;mysql)&has(ENV;prod)`
 * `$KEY`
+* `@group`
 * Expressions as values.
 * Extraneous whitespace.
 
 ### Unsupported (yet)
 
 * `a1..9.example.com`
-* `@group`
 * `?example.com`
 * `clusters(example.com)`
 * `%{expr}`

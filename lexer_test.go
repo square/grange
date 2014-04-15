@@ -104,3 +104,9 @@ func TestLexExclude(t *testing.T) {
 		item{itemText, "DOWN"},
 	)
 }
+
+func TestGroupLookup(t *testing.T) {
+	testValid(t, "@dc",
+		item{itemGroupLookup, "dc"},
+	)
+}

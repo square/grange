@@ -21,6 +21,10 @@ type ClusterLookupNode struct {
 	key  string
 }
 
+type GroupLookupNode struct {
+	name string
+}
+
 type IntersectNode struct {
 	left  Node
 	right Node
@@ -73,6 +77,10 @@ func (n LocalClusterLookupNode) merge(other Node) Node {
 	return n
 }
 
+func (n GroupLookupNode) merge(other Node) Node {
+	return n
+}
+
 func (n ErrorNode) merge(other Node) Node {
 	return n
 }
@@ -102,6 +110,8 @@ func parseRange(items chan item) Node {
 			} else {
 				currentNode = TextNode{currentItem.val}
 			}
+		case itemGroupLookup:
+			currentNode = GroupLookupNode{currentItem.val}
 		case itemFunctionStart:
 			switch currentNode.(type) {
 			case TextNode:

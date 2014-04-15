@@ -3,6 +3,7 @@ package grange
 import (
 	"fmt"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -43,6 +44,10 @@ func lexText(l *lexer) stateFn {
 	punctuation["$"] = itemLocalClusterKey
 
 	for {
+		if strings.HasPrefix(l.input[l.pos:], "@") {
+			return lexIdentifier("@", itemGroupLookup)
+		}
+
 		if strings.HasPrefix(l.input[l.pos:], clusterMeta) {
 			if l.pos > l.start {
 				return l.errorf("preceeding chars: %s", l.input[l.start:l.pos])
@@ -92,6 +97,17 @@ func lexConst(str string, t itemType) stateFn {
 	}
 }
 
+func lexIdentifier(str string, t itemType) stateFn {
+	return func(l *lexer) stateFn {
+		l.pos += len(str)
+		l.ignore()
+		l.acceptIdentifier()
+		l.emit(t)
+
+		return lexText
+	}
+}
+
 // -------------------
 // types and constants
 // -------------------
@@ -130,6 +146,7 @@ const (
 	itemParam
 	itemLocalClusterKey
 	itemExclude
+	itemGroupLookup
 	itemEOF
 )
 
@@ -187,6 +204,20 @@ func (l *lexer) ignore() {
 	l.start = l.pos
 }
 
+// acceptIdentifier consumes a run of runes that are allowed to be in an
+// identifier.
+func (l *lexer) acceptIdentifier() {
+	for isAlphaNumeric(l.next()) {
+	}
+	l.backup()
+}
+
+// isAlphaNumeric reports whether r is an alphabetic, digit, hyphen, or
+// underscore.
+func isAlphaNumeric(r rune) bool {
+	return r == '-' || r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
+}
+
 // error returns an error token and terminates the scan
 // by passing back a nil pointer that will be the next
 // state, terminating l.run.
@@ -196,4 +227,10 @@ func (l *lexer) errorf(format string, args ...interface{}) stateFn {
 		fmt.Sprintf(format, args...),
 	}
 	return nil
+}
+
+// backup steps back one rune.
+// Can be called only once per call of next.
+func (l *lexer) backup() {
+	l.pos -= l.width
 }
