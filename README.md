@@ -25,6 +25,9 @@ Supported Syntax
 * `%cluster1&%cluster2`
 * `has(TYPE;mysql)`
 * `has(TYPE;mysql)&has(ENV;prod)`
+* `$KEY`
+* Expressions as values.
+* Extraneous whitespace.
 
 ### Unsupported (yet)
 
@@ -35,8 +38,6 @@ Supported Syntax
 * `%{expr}`
 * `%{expr}:KEY`
 * `%cluster:{KEY1,KEY2}`
-* Expressions as values.
-* Extraneous whitespace.
 
 Development
 -----------

@@ -12,7 +12,7 @@ import (
 func lexRange(name, input string) (*lexer, chan item) {
 	l := &lexer{
 		name:  name,
-		input: input,
+		input: strings.Replace(input, " ", "", -1), // TODO: Probably terrible?
 		items: make(chan item),
 	}
 	go l.run()
