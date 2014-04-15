@@ -41,11 +41,14 @@ func lexText(l *lexer) stateFn {
 	punctuation["}"] = itemRightGroup
 	punctuation["("] = itemFunctionStart
 	punctuation[")"] = itemFunctionClose
-	punctuation["$"] = itemLocalClusterKey
 
 	for {
 		if strings.HasPrefix(l.input[l.pos:], "@") {
 			return lexIdentifier("@", itemGroupLookup)
+		}
+
+		if strings.HasPrefix(l.input[l.pos:], "$") {
+			return lexIdentifier("$", itemLocalClusterKey)
 		}
 
 		if strings.HasPrefix(l.input[l.pos:], clusterMeta) {

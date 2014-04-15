@@ -146,13 +146,7 @@ func parseRange(items chan item) Node {
 		case itemCluster:
 			currentNode = parseCluster(items)
 		case itemLocalClusterKey:
-			subItem := <-items
-
-			if subItem.typ == itemText {
-				currentNode = LocalClusterLookupNode{subItem.val}
-			} else {
-				return ErrorNode{"$ must be followed by text"}
-			}
+			currentNode = LocalClusterLookupNode{currentItem.val}
 		case itemLeftGroup:
 			// Find closing right group
 			stack := 1

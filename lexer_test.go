@@ -90,18 +90,15 @@ func TestFunction(t *testing.T) {
 
 func TestLocalClusterKey(t *testing.T) {
 	testValid(t, "$ALL",
-		item{itemLocalClusterKey, "$"},
-		item{itemText, "ALL"},
+		item{itemLocalClusterKey, "ALL"},
 	)
 }
 
 func TestLexExclude(t *testing.T) {
 	testValid(t, "$ALL - $DOWN",
-		item{itemLocalClusterKey, "$"},
-		item{itemText, "ALL"},
+		item{itemLocalClusterKey, "ALL"},
 		item{itemExclude, "-"},
-		item{itemLocalClusterKey, "$"},
-		item{itemText, "DOWN"},
+		item{itemLocalClusterKey, "DOWN"},
 	)
 }
 
