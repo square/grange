@@ -34,25 +34,34 @@ func (l *lexer) run() {
 // Base state for the lexer
 func lexText(l *lexer) stateFn {
 	punctuation := map[string]itemType{}
-	punctuation[":"] = itemClusterKey
 	punctuation["&"] = itemIntersect
+	punctuation["-"] = itemExclude
 	punctuation[","] = itemComma
 	punctuation["{"] = itemLeftGroup
 	punctuation["}"] = itemRightGroup
-	punctuation["("] = itemFunctionStart
-	punctuation[")"] = itemFunctionClose
-	punctuation["$"] = itemLocalClusterKey
 
 	for {
+		if strings.HasPrefix(l.input[l.pos:], "(") {
+			return lexFunction
+		}
+
 		if strings.HasPrefix(l.input[l.pos:], "@") {
 			return lexIdentifier("@", itemGroupLookup)
+		}
+
+		if strings.HasPrefix(l.input[l.pos:], "$") {
+			return lexIdentifier("$", itemLocalClusterKey)
+		}
+
+		if strings.HasPrefix(l.input[l.pos:], ":") {
+			return lexIdentifier(":", itemClusterKey)
 		}
 
 		if strings.HasPrefix(l.input[l.pos:], clusterMeta) {
 			if l.pos > l.start {
 				return l.errorf("preceeding chars: %s", l.input[l.start:l.pos])
 			}
-			return lexConst(clusterMeta, itemCluster)
+			return lexIdentifier(clusterMeta, itemCluster)
 		}
 
 		for str, i := range punctuation {
@@ -68,11 +77,6 @@ func lexText(l *lexer) stateFn {
 			l.next()
 			l.ignore()
 			return lexText
-		}
-
-		// This is weird because - is not a terminator, unlike other punctuation
-		if strings.HasPrefix(l.input[l.start:], "-") {
-			return lexConst("-", itemExclude)
 		}
 
 		if l.next() == eof {
@@ -108,6 +112,28 @@ func lexIdentifier(str string, t itemType) stateFn {
 	}
 }
 
+func lexFunction(l *lexer) stateFn {
+	l.emit(itemFunctionName)
+	l.pos += len("(")
+	l.ignore()
+
+	for {
+		if strings.HasPrefix(l.input[l.pos:], ")") {
+			l.emit(itemFunctionParam)
+			l.pos += len(")")
+			l.ignore()
+
+			return lexText
+		}
+
+		if l.next() == eof {
+			break
+		}
+	}
+
+	return lexText
+}
+
 // -------------------
 // types and constants
 // -------------------
@@ -141,8 +167,8 @@ const (
 	itemComma
 	itemLeftGroup
 	itemRightGroup
-	itemFunctionStart
-	itemFunctionClose
+	itemFunctionName
+	itemFunctionParam
 	itemParam
 	itemLocalClusterKey
 	itemExclude

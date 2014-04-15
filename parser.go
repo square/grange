@@ -112,47 +112,38 @@ func parseRange(items chan item) Node {
 			}
 		case itemGroupLookup:
 			currentNode = GroupLookupNode{currentItem.val}
-		case itemFunctionStart:
-			switch currentNode.(type) {
-			case TextNode:
-				functionName := currentNode.(TextNode).val
+		case itemFunctionName:
+			if currentItem.val != "has" {
+				return ErrorNode{fmt.Sprintf("Unknown function: %s", currentItem.val)}
+			}
 
-				if functionName != "has" {
-					return ErrorNode{fmt.Sprintf("Unknown function: %s", functionName)}
+			paramItem := <-items
+
+			if paramItem.typ != itemFunctionParam {
+				return ErrorNode{fmt.Sprintf("Expecting parameter to function %s", currentItem.val)}
+			} else {
+				functionParam := paramItem.val
+
+				tokens := strings.Split(functionParam, ";")
+
+				if len(tokens) != 2 {
+					return ErrorNode{fmt.Sprintf("Invalid function parameter: %s", functionParam)}
 				}
 
-				paramItem := <-items
-				if paramItem.typ != itemText {
-					return ErrorNode{"Expecting text inside function call"}
-				} else {
-					functionParam := paramItem.val
-
-					closeItem := <-items
-					if closeItem.typ != itemFunctionClose {
-						return ErrorNode{"Expecting text inside function call"}
-					}
-
-					tokens := strings.Split(functionParam, ";")
-
-					if len(tokens) != 2 {
-						return ErrorNode{fmt.Sprintf("Invalid function parameter: %s", functionParam)}
-					}
-
-					currentNode = HasNode{tokens[0], tokens[1]}
-				}
-			default:
-				panic("Unimplemented. Treat as group?")
+				currentNode = HasNode{tokens[0], tokens[1]}
 			}
 		case itemCluster:
-			currentNode = parseCluster(items)
-		case itemLocalClusterKey:
-			subItem := <-items
-
-			if subItem.typ == itemText {
-				currentNode = LocalClusterLookupNode{subItem.val}
-			} else {
-				return ErrorNode{"$ must be followed by text"}
+			currentNode = ClusterLookupNode{currentItem.val, "CLUSTER"}
+		case itemClusterKey:
+			switch currentNode.(type) {
+			case ClusterLookupNode:
+				n := currentNode.(ClusterLookupNode)
+				currentNode = ClusterLookupNode{n.name, currentItem.val}
+			default:
+				return ErrorNode{fmt.Sprintf("%s must follow a cluster", currentNode)}
 			}
+		case itemLocalClusterKey:
+			currentNode = LocalClusterLookupNode{currentItem.val}
 		case itemLeftGroup:
 			// Find closing right group
 			stack := 1
@@ -205,35 +196,4 @@ func parseRange(items chan item) Node {
 		}
 	}
 	return currentNode
-}
-
-func parseCluster(items chan item) Node {
-	item := <-items
-	clusterKey := "CLUSTER" // Default
-
-	if item.typ == itemText {
-		clusterName := item.val
-
-		item = <-items
-		if item.typ == itemClusterKey {
-			item = <-items
-
-			if item.typ == itemText {
-				clusterKey = item.val
-			} else {
-				return ErrorNode{fmt.Sprintf("Invalid token in query: %s", item)}
-			}
-		} else if item.typ == itemComma {
-			return GroupNode{
-				ClusterLookupNode{clusterName, clusterKey},
-				parseRange(items),
-			}
-		} else if item.typ != itemEOF {
-			return ErrorNode{fmt.Sprintf("Invalid token in query: %s", item)}
-		}
-
-		return ClusterLookupNode{clusterName, clusterKey}
-	} else {
-		return ErrorNode{fmt.Sprintf("Invalid token in query: %s", item)}
-	}
 }
