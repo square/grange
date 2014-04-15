@@ -17,6 +17,12 @@ func TestExplicitCluster(t *testing.T) {
 	}))
 }
 
+func TestClusterKeys(t *testing.T) {
+	testEval(t, []string{"NODES"}, "%a:KEYS", singleCluster("a", Cluster{
+		"NODES": []string{"b", "c"},
+	}))
+}
+
 func TestClusterMissing(t *testing.T) {
 	testEval(t, []string{}, "%a", emptyState())
 }

@@ -20,7 +20,8 @@ Supported Syntax
 * `{a,b}.example.com`
 * `example.{com,org}`
 * `%cluster1`
-* `%cluster1:KEY`
+* `%cluster1:SOMEKEY`
+* `%cluster1:KEYS`
 * `%cluster1,%cluster2`
 * `%cluster1 & %cluster2`
 * `%cluster1 - %cluster2`

@@ -152,7 +152,16 @@ func (n ErrorNode) visit(state *RangeState, context *evalContext) []string {
 }
 
 func clusterLookup(state *RangeState, clusterName string, key string) []string {
-	clusterExp := state.clusters[clusterName][key] // TODO: Error handling
+	cluster := state.clusters[clusterName]
+	if key == "KEYS" {
+		keys := []string{}
+		for k, _ := range cluster {
+			keys = append(keys, k)
+		}
+		return keys
+	}
+
+	clusterExp := cluster[key] // TODO: Error handling
 	result := []string{}
 
 	for _, value := range clusterExp {
