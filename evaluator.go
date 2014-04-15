@@ -36,14 +36,14 @@ func evalRange(input string, state *RangeState) (result []string, err error) {
 func evalRangeWithContext(input string, state *RangeState, context *evalContext) (result []string, err error) {
 	_, items := lexRange("eval", input)
 
-	node := parseRange(items).(EvalNode)
-	parseError := node.findError()
+	node := parseRange(items)
+	parseError := findError(node)
 	if parseError != nil {
 		return nil, parseError
 	}
 	//fmt.Printf("%s\n", node)
 
-	return node.visit(state, context), nil
+	return node.(EvalNode).visit(state, context), nil
 }
 
 func (n ClusterLookupNode) visit(state *RangeState, _ *evalContext) []string {
@@ -179,40 +179,33 @@ func (n HasNode) String() string {
 	return fmt.Sprintf("has(%s;%s)", n.key, n.match)
 }
 
-func (n ErrorNode) findError() error {
-	return errors.New(n.message)
-}
-
-// TODO: Better way to do this?
-func (TextNode) findError() error               { return nil }
-func (ClusterLookupNode) findError() error      { return nil }
-func (LocalClusterLookupNode) findError() error { return nil }
-func (n GroupNode) findError() error {
-	err := n.head.(EvalNode).findError()
-	if err != nil {
-		return err
+func findError(n Node) error {
+	switch n.(type) {
+	case ErrorNode:
+		return errors.New(n.(ErrorNode).message)
+	case GroupNode: // TODO: How to remove all the duplication below?
+		err := findError(n.(GroupNode).head)
+		if err != nil {
+			return err
+		}
+		return findError(n.(GroupNode).tail)
+	case IntersectNode:
+		err := findError(n.(IntersectNode).left)
+		if err != nil {
+			return err
+		}
+		return findError(n.(IntersectNode).right)
+	case ExcludeNode:
+		err := findError(n.(ExcludeNode).left)
+		if err != nil {
+			return err
+		}
+		return findError(n.(ExcludeNode).right)
+	default:
+		return nil
 	}
-	return n.tail.(EvalNode).findError()
-}
-func (HasNode) findError() error { return nil }
-
-func (n IntersectNode) findError() error {
-	err := n.left.(EvalNode).findError()
-	if err != nil {
-		return err
-	}
-	return n.right.(EvalNode).findError()
-}
-
-func (n ExcludeNode) findError() error {
-	err := n.left.(EvalNode).findError()
-	if err != nil {
-		return err
-	}
-	return n.right.(EvalNode).findError()
 }
 
 type EvalNode interface {
 	visit(*RangeState, *evalContext) []string
-	findError() error
 }
