@@ -31,15 +31,13 @@ func testLexError(t *testing.T, input string, expected string) {
 func TestEmpty(t *testing.T) { testValid(t, "") }
 func TestText(t *testing.T)  { testValid(t, "a.b", item{itemText, "a.b"}) }
 func TestCluster(t *testing.T) {
-	testValid(t, "%a", item{itemCluster, "%"}, item{itemText, "a"})
+	testValid(t, "%a", item{itemCluster, "a"})
 }
 func TestPreamble(t *testing.T) { testLexError(t, "a%", "preceeding chars: a") }
 func TestClusterKey(t *testing.T) {
 	testValid(t, "%a:KEY",
-		item{itemCluster, "%"},
-		item{itemText, "a"},
-		item{itemClusterKey, ":"},
-		item{itemText, "KEY"},
+		item{itemCluster, "a"},
+		item{itemClusterKey, "KEY"},
 	)
 }
 func TestLexIntersect(t *testing.T) {
@@ -54,10 +52,8 @@ func TestLexIntersectWithGroup(t *testing.T) {
 	testValid(t, "a & %b:KEY",
 		item{itemText, "a"},
 		item{itemIntersect, "&"},
-		item{itemCluster, "%"},
-		item{itemText, "b"},
-		item{itemClusterKey, ":"},
-		item{itemText, "KEY"},
+		item{itemCluster, "b"},
+		item{itemClusterKey, "KEY"},
 	)
 }
 

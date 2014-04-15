@@ -34,7 +34,6 @@ func (l *lexer) run() {
 // Base state for the lexer
 func lexText(l *lexer) stateFn {
 	punctuation := map[string]itemType{}
-	punctuation[":"] = itemClusterKey
 	punctuation["&"] = itemIntersect
 	punctuation[","] = itemComma
 	punctuation["{"] = itemLeftGroup
@@ -51,11 +50,15 @@ func lexText(l *lexer) stateFn {
 			return lexIdentifier("$", itemLocalClusterKey)
 		}
 
+		if strings.HasPrefix(l.input[l.pos:], ":") {
+			return lexIdentifier(":", itemClusterKey)
+		}
+
 		if strings.HasPrefix(l.input[l.pos:], clusterMeta) {
 			if l.pos > l.start {
 				return l.errorf("preceeding chars: %s", l.input[l.start:l.pos])
 			}
-			return lexConst(clusterMeta, itemCluster)
+			return lexIdentifier(clusterMeta, itemCluster)
 		}
 
 		for str, i := range punctuation {

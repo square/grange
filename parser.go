@@ -144,7 +144,15 @@ func parseRange(items chan item) Node {
 				panic("Unimplemented. Treat as group?")
 			}
 		case itemCluster:
-			currentNode = parseCluster(items)
+			currentNode = ClusterLookupNode{currentItem.val, "CLUSTER"}
+		case itemClusterKey:
+			switch currentNode.(type) {
+			case ClusterLookupNode:
+				n := currentNode.(ClusterLookupNode)
+				currentNode = ClusterLookupNode{n.name, currentItem.val}
+			default:
+				return ErrorNode{fmt.Sprintf("%s must follow a cluster", currentNode)}
+			}
 		case itemLocalClusterKey:
 			currentNode = LocalClusterLookupNode{currentItem.val}
 		case itemLeftGroup:
@@ -199,35 +207,4 @@ func parseRange(items chan item) Node {
 		}
 	}
 	return currentNode
-}
-
-func parseCluster(items chan item) Node {
-	item := <-items
-	clusterKey := "CLUSTER" // Default
-
-	if item.typ == itemText {
-		clusterName := item.val
-
-		item = <-items
-		if item.typ == itemClusterKey {
-			item = <-items
-
-			if item.typ == itemText {
-				clusterKey = item.val
-			} else {
-				return ErrorNode{fmt.Sprintf("Invalid token in query: %s", item)}
-			}
-		} else if item.typ == itemComma {
-			return GroupNode{
-				ClusterLookupNode{clusterName, clusterKey},
-				parseRange(items),
-			}
-		} else if item.typ != itemEOF {
-			return ErrorNode{fmt.Sprintf("Invalid token in query: %s", item)}
-		}
-
-		return ClusterLookupNode{clusterName, clusterKey}
-	} else {
-		return ErrorNode{fmt.Sprintf("Invalid token in query: %s", item)}
-	}
 }
