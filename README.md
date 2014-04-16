@@ -26,7 +26,7 @@ Supported Syntax
 * `%cluster1 & %cluster2`
 * `%cluster1 - %cluster2`
 * `has(TYPE;mysql)`
-* `has(TYPE;mysql)&has(ENV;prod)`
+* `has(TYPE;mysql) & has(ENV;prod)`
 * `$KEY`
 * `@group`
 * `%{expr}`
@@ -41,6 +41,7 @@ Supported Syntax
 * `?example.com`
 * `clusters(example.com)`
 * `%cluster:{KEY1,KEY2}`
+* `has(TYPE;%{clusters(a.example.com)}:TYPE)` (range expression in parameter)
 
 Development
 -----------
