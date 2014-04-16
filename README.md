@@ -31,6 +31,7 @@ Supported Syntax
 * `@group`
 * `%{expr}`
 * `%{expr}:KEY`
+* `/match/`
 * Expressions as values.
 * Extraneous whitespace.
 

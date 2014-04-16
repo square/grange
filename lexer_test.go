@@ -109,3 +109,9 @@ func TestSubexprLex(t *testing.T) {
 		item{itemSubexprEnd, "}"},
 	)
 }
+
+func TestMatchLex(t *testing.T) {
+	testValid(t, "/a/",
+		item{itemMatch, "a"},
+	)
+}

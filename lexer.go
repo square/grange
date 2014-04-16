@@ -70,6 +70,10 @@ func lexText(l *lexer) stateFn {
 			return lexFunction
 		}
 
+		if strings.HasPrefix(l.input[l.pos:], "/") {
+			return lexMatch
+		}
+
 		if strings.HasPrefix(l.input[l.pos:], "@") {
 			return lexIdentifier("@", itemGroupLookup)
 		}
@@ -137,6 +141,27 @@ func lexIdentifier(str string, t itemType) stateFn {
 	}
 }
 
+func lexMatch(l *lexer) stateFn {
+	l.pos += len("/")
+	l.ignore()
+
+	for {
+		if strings.HasPrefix(l.input[l.pos:], "/") {
+			l.emit(itemMatch)
+			l.pos += len("/")
+			l.ignore()
+
+			return lexText
+		}
+
+		if l.next() == eof {
+			return l.errorf("No closing / for match")
+		}
+	}
+
+	panic("Unreachable")
+}
+
 func lexFunction(l *lexer) stateFn {
 	l.emit(itemFunctionName)
 	l.pos += len("(")
@@ -202,6 +227,7 @@ const (
 	itemGroupLookup
 	itemSubexprStart
 	itemSubexprEnd
+	itemMatch
 	itemEOF
 )
 
@@ -224,6 +250,8 @@ func (i item) String() string {
 		return "%{"
 	case itemSubexprEnd:
 		return "}%"
+	case itemMatch:
+		return fmt.Sprintf("/%s/", i.val)
 	}
 	if len(i.val) > 10 {
 		return fmt.Sprintf("%.10q...", i.val)

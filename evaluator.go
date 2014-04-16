@@ -3,6 +3,7 @@ package grange
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 type Cluster map[string][]string
@@ -14,6 +15,7 @@ type RangeState struct {
 
 type evalContext struct {
 	currentClusterName string
+	currentResult      []string
 }
 
 func SetGroups(state *RangeState, c Cluster) {
@@ -86,7 +88,9 @@ func (n IntersectNode) visit(state *RangeState, context *evalContext) []string {
 		return result
 	}
 
+	context.currentResult = leftSide
 	rightSide := n.right.(EvalNode).visit(state, context)
+	context.currentResult = nil
 
 	set := map[string]bool{}
 	for _, x := range leftSide {
@@ -114,7 +118,9 @@ func (n ExcludeNode) visit(state *RangeState, context *evalContext) []string {
 		return result
 	}
 
+	context.currentResult = leftSide
 	rightSide := n.right.(EvalNode).visit(state, context)
+	context.currentResult = nil
 
 	set := map[string]bool{}
 	for _, x := range rightSide {
@@ -154,6 +160,51 @@ func (n HasNode) visit(state *RangeState, context *evalContext) []string {
 		}
 	}
 
+	return result
+}
+
+func (n MatchNode) visit(state *RangeState, context *evalContext) []string {
+	var toMatch []string
+	result := []string{}
+	if context.currentResult != nil {
+		toMatch = context.currentResult
+	} else {
+		toMatch = state.allValues()
+	}
+
+	for _, x := range toMatch {
+		if strings.Contains(x, n.val) {
+			result = append(result, x)
+		}
+	}
+
+	return result
+}
+
+func (state *RangeState) allValues() []string {
+	// Fake set
+	accum := map[string]bool{}
+
+	// Expand everything into the set
+	for clusterName, c := range state.clusters {
+		for _, v := range c {
+			for _, subv := range v {
+				expansion, _ := evalRangeWithContext(subv, state, &evalContext{
+					currentClusterName: clusterName,
+				})
+
+				for _, x := range expansion {
+					accum[x] = true
+				}
+			}
+		}
+	}
+
+	// Keys of map are the set
+	result := []string{}
+	for k, _ := range accum {
+		result = append(result, k)
+	}
 	return result
 }
 

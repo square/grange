@@ -16,6 +16,10 @@ type TextNode struct {
 	val string
 }
 
+type MatchNode struct {
+	val string
+}
+
 type ClusterLookupNode struct {
 	name string
 	key  string
@@ -76,6 +80,10 @@ func (n TextNode) merge(other Node) Node {
 	default:
 		return n
 	}
+}
+
+func (n MatchNode) merge(other Node) Node {
+	return n // TODO: what?
 }
 
 func (n ClusterLookupNode) merge(other Node) Node {
@@ -194,7 +202,11 @@ func parseRange(items chan item) Node {
 				return GroupNode{currentNode, parseRange(items)}
 			}
 		case itemSubexprStart:
+			// TODO: Merge
 			currentNode = parseSubexpr(items)
+		case itemMatch:
+			// TODO: Merge
+			currentNode = MatchNode{currentItem.val}
 		case itemIntersect:
 			if currentNode == nil {
 				currentNode = ErrorNode{"No left side provided for intersection"}

@@ -127,6 +127,30 @@ func TestSubexprExplicitKey(t *testing.T) {
 	}))
 }
 
+func TestMatchNoContext(t *testing.T) {
+	testEval(t, []string{"ab"}, "/b/", singleCluster("ignore", Cluster{
+		"CLUSTER": []string{"$ALL"},
+		"ALL":     []string{"ab", "c"},
+	}))
+}
+
+func TestMatch(t *testing.T) {
+	testEval(t, []string{"ab", "ba", "abc"}, "%cluster & /b/", singleCluster("cluster", Cluster{
+		"CLUSTER": []string{"ab", "ba", "abc", "ccc"},
+	}))
+}
+
+func TestMatchReverse(t *testing.T) {
+	testEval(t, []string{"ab", "ba", "abc"}, "/b/ & %cluster", singleCluster("cluster", Cluster{
+		"CLUSTER": []string{"ab", "ba", "abc", "ccc"},
+	}))
+}
+
+func TestMatchWithExclude(t *testing.T) {
+	testEval(t, []string{"ccc"}, "%cluster - /b/", singleCluster("cluster", Cluster{
+		"CLUSTER": []string{"ab", "ba", "abc", "ccc"},
+	}))
+}
 func testError(t *testing.T, expected string, query string) {
 	_, err := evalRange(query, emptyState())
 
