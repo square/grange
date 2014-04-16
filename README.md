@@ -32,6 +32,7 @@ Supported Syntax
 * `%{expr}`
 * `%{expr}:KEY`
 * `/match/`
+* `has(TYPE;%{clusters(a.example.com)}:TYPE)` (range expression in parameter)
 * Expressions as values.
 * Extraneous whitespace.
 
@@ -42,7 +43,6 @@ Supported Syntax
 * `clusters(example.com)`
 * `q(http://blah)`
 * `%cluster:{KEY1,KEY2}`
-* `has(TYPE;%{clusters(a.example.com)}:TYPE)` (range expression in parameter)
 
 Development
 -----------
@@ -51,10 +51,4 @@ This is library, so does not export a main function. Run it via tests.
 
     go get github.com/pointlander/peg
 
-    $GOPATH/bin/peg range.peg
-    go test
-
-Notes
------
-
-* Parser and lexer are still in flux, I'm just toying with ideas.
+    $GOPATH/bin/peg range.peg && go test
