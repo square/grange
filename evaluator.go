@@ -144,6 +144,22 @@ func (n OperatorNode) visit(state *RangeState, context *evalContext) []string {
 			}
 		}
 		return result
+	case operatorUnion:
+		result := []string{}
+		leftSide := n.left.(EvalNode).visit(state, context)
+		rightSide := n.right.(EvalNode).visit(state, context)
+
+		set := map[string]bool{}
+		for _, x := range leftSide {
+			set[x] = true
+		}
+		for _, x := range rightSide {
+			set[x] = true
+		}
+		for x, _ := range set {
+			result = append(result, x)
+		}
+		return result
 	}
 	return []string{}
 }
