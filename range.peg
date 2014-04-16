@@ -1,0 +1,44 @@
+package grange
+
+type RangeQuery Peg {
+  currentLiteral string
+  nodeStack []Node
+}
+
+expression <- rangeexpr combinators? !.
+
+rangeexpr <- space
+    ( q
+    / function
+    / subexpr
+    / cluster
+    / group
+    / localkey
+    / regex
+    / value)
+
+combinators <- space (braces / union / intersect / exclude)
+intersect   <- '&' rangeexpr { p.AddOperator(operatorIntersect) }
+exclude     <- '-' rangeexpr { p.AddOperator(operatorSubtract) }
+union       <- ',' rangeexpr { p.AddOperator(operatorUnion) }
+
+# TODO: Doesn't work, https://github.com/pointlander/peg/issues/21
+braces  <- '{' rangeexpr '}'
+
+subexpr <- '%{' rangeexpr '}' { p.AddSubexpr() } key?
+cluster <- '%' literal { p.AddClusterLookup(buffer[begin:end]) } key?
+group   <- '@' literal { p.AddGroupLookup(buffer[begin:end]) }
+key     <- ':' literal { p.AddKeyLookup(buffer[begin:end]) }
+localkey <- '$' literal { p.AddLocalClusterLookup(buffer[begin:end]) }
+
+function <- literal { p.AddFunction(buffer[begin:end]) } '(' funcargs ')'
+funcargs <- rangeexpr { p.AddFuncArg() } ';' funcargs
+          / rangeexpr { p.AddFuncArg() }
+
+# TODO: regex and q should match all chars
+# https://github.com/pointlander/peg/issues/22
+regex   <- '/' < [[a-z0-9]]* > '/' { p.AddRegex(buffer[begin:end]) }
+literal <- <[[a-z0-9-_]]+>
+value   <- <[[a-z0-9-_.]]+> { p.AddValue(buffer[begin:end]) }
+q       <- 'q(' <[[a-z0-9:/\\.]]*> ')' { p.AddValue(buffer[begin:end]) }
+space   <- ' '*
