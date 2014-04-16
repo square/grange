@@ -25,6 +25,10 @@ type GroupLookupNode struct {
 	name string
 }
 
+type SubexprNode struct {
+	expr Node
+}
+
 type IntersectNode struct {
 	left  Node
 	right Node
@@ -55,6 +59,10 @@ type LocalClusterLookupNode struct {
 
 func (n GroupNode) merge(other Node) Node {
 	return GroupNode{n.head.merge(other), n.tail.merge(other)}
+}
+
+func (n SubexprNode) merge(other Node) Node {
+	return n // TODO: what does this even mean
 }
 
 func (n TextNode) merge(other Node) Node {
@@ -181,6 +189,8 @@ func parseRange(items chan item) Node {
 			if currentNode != nil {
 				return GroupNode{currentNode, parseRange(items)}
 			}
+		case itemSubexprStart:
+			currentNode = parseSubexpr(items)
 		case itemIntersect:
 			if currentNode == nil {
 				currentNode = ErrorNode{"No left side provided for intersection"}
@@ -193,7 +203,27 @@ func parseRange(items chan item) Node {
 			}
 
 			return ExcludeNode{currentNode, parseRange(items)}
+		case itemEOF:
+			return currentNode
 		}
 	}
-	return currentNode
+	panic("Unreachable")
+}
+
+func parseSubexpr(items chan item) Node {
+	subItems := make(chan item, 1000) // TODO: Don't use a bounded channel like this
+
+	for currentItem := range items {
+		switch currentItem.typ {
+		case itemSubexprEnd:
+			subItems <- item{itemEOF, ""}
+			return SubexprNode{parseRange(subItems)}
+		case itemEOF:
+			return ErrorNode{"Could not find end of subexpr"}
+		default:
+			subItems <- currentItem
+		}
+	}
+
+	panic("Unreachable")
 }

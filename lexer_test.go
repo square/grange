@@ -101,3 +101,11 @@ func TestGroupLookup(t *testing.T) {
 		item{itemGroupLookup, "dc"},
 	)
 }
+
+func TestSubexprLex(t *testing.T) {
+	testValid(t, "%{a}",
+		item{itemSubexprStart, "%{"},
+		item{itemText, "a"},
+		item{itemSubexprEnd, "}"},
+	)
+}

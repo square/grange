@@ -12,9 +12,11 @@ import (
 // channel.
 func lexRange(name, input string) (*lexer, chan item) {
 	l := &lexer{
-		name:  name,
-		input: input,
-		items: make(chan item),
+		name:       name,
+		input:      input,
+		items:      make(chan item),
+		commaStack: 0,
+		inSubexpr:  false,
 	}
 	go l.run()
 	return l, l.items
@@ -37,10 +39,33 @@ func lexText(l *lexer) stateFn {
 	punctuation["&"] = itemIntersect
 	punctuation["-"] = itemExclude
 	punctuation[","] = itemComma
-	punctuation["{"] = itemLeftGroup
-	punctuation["}"] = itemRightGroup
 
 	for {
+		if strings.HasPrefix(l.input[l.pos:], "%{") {
+			if l.inSubexpr {
+				return l.errorf("May not nest subexpressions")
+			}
+			l.inSubexpr = true
+
+			return lexConst("%{", itemSubexprStart)
+		}
+		if strings.HasPrefix(l.input[l.pos:], "{") {
+			l.emitTextIfPresent()
+			l.commaStack++
+			return lexConst("{", itemLeftGroup)
+		}
+		if strings.HasPrefix(l.input[l.pos:], "}") {
+			l.emitTextIfPresent()
+
+			// if stack empty and in subexpression, it's subexpr end
+			if l.inSubexpr && l.commaStack == 0 {
+				l.inSubexpr = false
+				return lexConst("}", itemSubexprEnd)
+			}
+
+			l.commaStack--
+			return lexConst("}", itemRightGroup)
+		}
 		if strings.HasPrefix(l.input[l.pos:], "(") {
 			return lexFunction
 		}
@@ -149,12 +174,14 @@ type item struct {
 
 // lexer holds the state of the scanner.
 type lexer struct {
-	name  string    // used only for error reports.
-	input string    // the string being scanned.
-	start int       // start position of this item.
-	pos   int       // current position in the input.
-	width int       // width of last rune read from input.
-	items chan item // channel of scanned items.
+	name       string    // used only for error reports.
+	input      string    // the string being scanned.
+	start      int       // start position of this item.
+	pos        int       // current position in the input.
+	width      int       // width of last rune read from input.
+	items      chan item // channel of scanned items.
+	commaStack int
+	inSubexpr  bool
 }
 
 // The different types of items that can be returned
@@ -173,6 +200,8 @@ const (
 	itemLocalClusterKey
 	itemExclude
 	itemGroupLookup
+	itemSubexprStart
+	itemSubexprEnd
 	itemEOF
 )
 
@@ -189,6 +218,12 @@ func (i item) String() string {
 		return i.val
 	case itemError:
 		return i.val
+	case itemRightGroup:
+		return ",}"
+	case itemSubexprStart:
+		return "%{"
+	case itemSubexprEnd:
+		return "}%"
 	}
 	if len(i.val) > 10 {
 		return fmt.Sprintf("%.10q...", i.val)

@@ -63,6 +63,16 @@ func (n LocalClusterLookupNode) visit(state *RangeState, context *evalContext) [
 	return clusterLookup(state, context.currentClusterName, n.key)
 }
 
+func (n SubexprNode) visit(state *RangeState, context *evalContext) []string {
+	clusters := n.expr.(EvalNode).visit(state, context)
+	result := []string{}
+
+	for _, cluster := range clusters {
+		result = append(result, clusterLookup(state, cluster, "CLUSTER")...)
+	}
+	return result
+}
+
 func (n GroupLookupNode) visit(state *RangeState, _ *evalContext) []string {
 	return state.groups[n.name]
 }

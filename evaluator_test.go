@@ -113,6 +113,13 @@ func TestGroups(t *testing.T) {
 	testEval(t, []string{"a", "b"}, "@dc", singleGroup("dc", "a", "b"))
 }
 
+func TestSubexpr(t *testing.T) {
+	testEval(t, []string{"a"}, "%{has(TYPE;db)}", singleCluster("ignore", Cluster{
+		"CLUSTER": []string{"a"},
+		"TYPE":    []string{"db"},
+	}))
+}
+
 func testError(t *testing.T, expected string, query string) {
 	_, err := evalRange(query, emptyState())
 
