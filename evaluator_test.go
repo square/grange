@@ -30,14 +30,13 @@ func TestClusterMissingKey(t *testing.T) {
 	testEval(t, []string{}, "%a:NODES", singleCluster("a", Cluster{}))
 }
 
-// TODO: Pending
-//func TestErrorExplicitCluster(t *testing.T) {
-//	testError(t, "Invalid token in query: \"}\"", "%a:}")
-//}
-//
-//func TestErrorClusterName(t *testing.T) {
-//	testError(t, "Invalid token in query: \"}\"", "%}")
-//}
+func TestErrorExplicitCluster(t *testing.T) {
+	testError(t, "Invalid token in query: \"}\"", "%a:}")
+}
+
+func TestErrorClusterName(t *testing.T) {
+	testError(t, "Invalid token in query: \"}\"", "%}")
+}
 
 func TestHas(t *testing.T) {
 	testEval(t, []string{"a", "b"}, "has(TYPE;one)", multiCluster(map[string]Cluster{
@@ -158,13 +157,10 @@ func TestMatch(t *testing.T) {
 		}))
 }
 
-/*
-// TODO: Pending
 func TestMatchReverse(t *testing.T) {
 	testEval(t, []string{"ab", "ba", "abc"}, "/b/ & @group",
 		singleGroup("group", "ab", "ba", "abc", "ccc"))
 }
-*/
 
 func TestMatchWithExclude(t *testing.T) {
 	testEval(t, []string{"ccc"}, "%cluster - /b/",
