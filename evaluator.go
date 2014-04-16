@@ -67,10 +67,16 @@ func (n LocalClusterLookupNode) visit(state *RangeState, context *evalContext) [
 
 func (n SubexprNode) visit(state *RangeState, context *evalContext) []string {
 	clusters := n.expr.(EvalNode).visit(state, context)
-	result := []string{}
+	accum := map[string]bool{}
 
 	for _, cluster := range clusters {
-		result = append(result, clusterLookup(state, cluster, n.key)...)
+		for _, x := range clusterLookup(state, cluster, n.key) {
+			accum[x] = true
+		}
+	}
+	result := []string{}
+	for x, _ := range accum {
+		result = append(result, x)
 	}
 	return result
 }

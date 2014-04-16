@@ -127,6 +127,14 @@ func TestSubexprExplicitKey(t *testing.T) {
 	}))
 }
 
+func TestSubexprDedup(t *testing.T) {
+	testEval(t, []string{"one", "two"}, "%{has(TYPE;one)}:TYPE", multiCluster(map[string]Cluster{
+		"a": Cluster{"TYPE": []string{"one", "two"}},
+		"b": Cluster{"TYPE": []string{"two", "one"}},
+		"c": Cluster{"TYPE": []string{"three"}},
+	}))
+}
+
 func TestMatchNoContext(t *testing.T) {
 	testEval(t, []string{"ab"}, "/b/", singleCluster("ignore", Cluster{
 		"CLUSTER": []string{"$ALL"},
