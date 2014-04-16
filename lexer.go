@@ -37,7 +37,6 @@ func (l *lexer) run() {
 func lexText(l *lexer) stateFn {
 	punctuation := map[string]itemType{}
 	punctuation["&"] = itemIntersect
-	punctuation["-"] = itemExclude
 	punctuation[","] = itemComma
 
 	for {
@@ -91,6 +90,10 @@ func lexText(l *lexer) stateFn {
 				return l.errorf("preceeding chars: %s", l.input[l.start:l.pos])
 			}
 			return lexIdentifier(clusterMeta, itemCluster)
+		}
+
+		if strings.HasPrefix(l.input[l.start:], "-") {
+			return lexConst("-", itemExclude)
 		}
 
 		for str, i := range punctuation {
@@ -250,13 +253,15 @@ func (i item) String() string {
 		return "%{"
 	case itemSubexprEnd:
 		return "}%"
+	case itemExclude:
+		return "-"
 	case itemMatch:
 		return fmt.Sprintf("/%s/", i.val)
 	}
 	if len(i.val) > 10 {
 		return fmt.Sprintf("%.10q...", i.val)
 	}
-	return fmt.Sprintf("%q", i.val)
+	return fmt.Sprintf("%i%q", i.typ, i.val)
 }
 
 // ------------------------

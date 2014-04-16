@@ -28,8 +28,9 @@ func testLexError(t *testing.T, input string, expected string) {
 	testLex(t, input, item{itemError, expected})
 }
 
-func TestEmpty(t *testing.T) { testValid(t, "") }
-func TestText(t *testing.T)  { testValid(t, "a.b", item{itemText, "a.b"}) }
+func TestEmpty(t *testing.T)          { testValid(t, "") }
+func TestText(t *testing.T)           { testValid(t, "a.b", item{itemText, "a.b"}) }
+func TestTextWithHyphen(t *testing.T) { testValid(t, "a-b-c", item{itemText, "a-b-c"}) }
 func TestCluster(t *testing.T) {
 	testValid(t, "%a", item{itemCluster, "a"})
 }
