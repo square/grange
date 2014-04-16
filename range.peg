@@ -22,8 +22,8 @@ intersect   <- '&' rangeexpr { p.AddOperator(operatorIntersect) }
 exclude     <- '-' rangeexpr { p.AddOperator(operatorSubtract) }
 union       <- ',' rangeexpr { p.AddOperator(operatorUnion) }
 
-# TODO: Doesn't work, https://github.com/pointlander/peg/issues/21
-braces  <- '{' rangeexpr '}'
+# See https://github.com/pointlander/peg/issues/21 for context
+braces  <- '{' rangeexpr (union / intersect / exclude)'}'
 
 subexpr <- '%{' rangeexpr '}' { p.AddSubexpr() } key?
 cluster <- '%' literal { p.AddClusterLookup(buffer[begin:end]) } key?
@@ -35,10 +35,8 @@ function <- literal { p.AddFunction(buffer[begin:end]) } '(' funcargs ')'
 funcargs <- rangeexpr { p.AddFuncArg() } ';' funcargs
           / rangeexpr { p.AddFuncArg() }
 
-# TODO: regex and q should match all chars
-# https://github.com/pointlander/peg/issues/22
-regex   <- '/' < [[a-z0-9]]* > '/' { p.AddRegex(buffer[begin:end]) }
+regex   <- '/' < (!'/' .)* > '/' { p.AddRegex(buffer[begin:end]) }
 literal <- <[[a-z0-9-_]]+>
 value   <- <[[a-z0-9-_.]]+> { p.AddValue(buffer[begin:end]) }
-q       <- 'q(' <[[a-z0-9:/\\.]]*> ')' { p.AddValue(buffer[begin:end]) }
+q       <- 'q(' <(!')' .)*> ')' { p.AddValue(buffer[begin:end]) }
 space   <- ' '*
