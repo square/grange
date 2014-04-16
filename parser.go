@@ -27,6 +27,7 @@ type GroupLookupNode struct {
 
 type SubexprNode struct {
 	expr Node
+	key  string
 }
 
 type IntersectNode struct {
@@ -147,8 +148,11 @@ func parseRange(items chan item) Node {
 			case ClusterLookupNode:
 				n := currentNode.(ClusterLookupNode)
 				currentNode = ClusterLookupNode{n.name, currentItem.val}
+			case SubexprNode:
+				n := currentNode.(SubexprNode)
+				currentNode = SubexprNode{n.expr, currentItem.val}
 			default:
-				return ErrorNode{fmt.Sprintf("%s must follow a cluster", currentNode)}
+				return ErrorNode{fmt.Sprintf(":%s must follow a cluster", currentItem.val)}
 			}
 		case itemLocalClusterKey:
 			currentNode = LocalClusterLookupNode{currentItem.val}
@@ -217,7 +221,7 @@ func parseSubexpr(items chan item) Node {
 		switch currentItem.typ {
 		case itemSubexprEnd:
 			subItems <- item{itemEOF, ""}
-			return SubexprNode{parseRange(subItems)}
+			return SubexprNode{parseRange(subItems), "CLUSTER"}
 		case itemEOF:
 			return ErrorNode{"Could not find end of subexpr"}
 		default:

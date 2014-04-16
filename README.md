@@ -29,6 +29,8 @@ Supported Syntax
 * `has(TYPE;mysql)&has(ENV;prod)`
 * `$KEY`
 * `@group`
+* `%{expr}`
+* `%{expr}:KEY`
 * Expressions as values.
 * Extraneous whitespace.
 
@@ -37,8 +39,6 @@ Supported Syntax
 * `a1..9.example.com`
 * `?example.com`
 * `clusters(example.com)`
-* `%{expr}`
-* `%{expr}:KEY`
 * `%cluster:{KEY1,KEY2}`
 
 Development

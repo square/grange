@@ -120,6 +120,13 @@ func TestSubexpr(t *testing.T) {
 	}))
 }
 
+func TestSubexprExplicitKey(t *testing.T) {
+	testEval(t, []string{"a"}, "%{has(TYPE;db)}:NODES", singleCluster("ignore", Cluster{
+		"NODES": []string{"a"},
+		"TYPE":  []string{"db"},
+	}))
+}
+
 func testError(t *testing.T, expected string, query string) {
 	_, err := evalRange(query, emptyState())
 

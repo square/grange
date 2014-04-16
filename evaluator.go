@@ -68,7 +68,7 @@ func (n SubexprNode) visit(state *RangeState, context *evalContext) []string {
 	result := []string{}
 
 	for _, cluster := range clusters {
-		result = append(result, clusterLookup(state, cluster, "CLUSTER")...)
+		result = append(result, clusterLookup(state, cluster, n.key)...)
 	}
 	return result
 }
