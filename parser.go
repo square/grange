@@ -219,6 +219,8 @@ func parseRange(items chan item) Node {
 			}
 
 			return ExcludeNode{currentNode, parseRange(items)}
+		case itemError:
+			return ErrorNode{currentItem.val}
 		case itemEOF:
 			return currentNode
 		}

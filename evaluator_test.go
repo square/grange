@@ -113,6 +113,13 @@ func TestGroups(t *testing.T) {
 	testEval(t, []string{"a", "b"}, "@dc", singleGroup("dc", "a", "b"))
 }
 
+func TestGroupsExpand(t *testing.T) {
+	testEval(t, []string{"c"}, "@a", multiGroup(Cluster{
+		"a": []string{"$b"},
+		"b": []string{"c"},
+	}))
+}
+
 func TestSubexpr(t *testing.T) {
 	testEval(t, []string{"a"}, "%{has(TYPE;db)}", singleCluster("ignore", Cluster{
 		"CLUSTER": []string{"a"},
@@ -136,29 +143,32 @@ func TestSubexprDedup(t *testing.T) {
 }
 
 func TestMatchNoContext(t *testing.T) {
-	testEval(t, []string{"ab"}, "/b/", singleCluster("ignore", Cluster{
-		"CLUSTER": []string{"$ALL"},
-		"ALL":     []string{"ab", "c"},
-	}))
+	testEval(t, []string{"ab"}, "/b/", singleGroup("b", "ab", "c"))
 }
 
 func TestMatch(t *testing.T) {
-	testEval(t, []string{"ab", "ba", "abc"}, "%cluster & /b/", singleCluster("cluster", Cluster{
-		"CLUSTER": []string{"ab", "ba", "abc", "ccc"},
-	}))
+	testEval(t, []string{"ab", "ba", "abc"}, "%cluster & /b/",
+		singleCluster("cluster", Cluster{
+			"CLUSTER": []string{"ab", "ba", "abc", "ccc"},
+		}))
 }
 
 func TestMatchReverse(t *testing.T) {
-	testEval(t, []string{"ab", "ba", "abc"}, "/b/ & %cluster", singleCluster("cluster", Cluster{
-		"CLUSTER": []string{"ab", "ba", "abc", "ccc"},
-	}))
+	testEval(t, []string{"ab", "ba", "abc"}, "/b/ & @group",
+		singleGroup("group", "ab", "ba", "abc", "ccc"))
 }
 
 func TestMatchWithExclude(t *testing.T) {
-	testEval(t, []string{"ccc"}, "%cluster - /b/", singleCluster("cluster", Cluster{
-		"CLUSTER": []string{"ab", "ba", "abc", "ccc"},
-	}))
+	testEval(t, []string{"ccc"}, "%cluster - /b/",
+		singleCluster("cluster", Cluster{
+			"CLUSTER": []string{"ab", "ba", "abc", "ccc"},
+		}))
 }
+
+func TestInvalidLex(t *testing.T) {
+	testError(t, "No closing / for match", "/")
+}
+
 func testError(t *testing.T, expected string, query string) {
 	_, err := evalRange(query, emptyState())
 
@@ -192,6 +202,13 @@ func singleGroup(name string, members ...string) *RangeState {
 		groups: map[string][]string{},
 	}
 	state.groups[name] = members
+	return &state
+}
+
+func multiGroup(c Cluster) *RangeState {
+	state := RangeState{
+		groups: c,
+	}
 	return &state
 }
 

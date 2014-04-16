@@ -46,9 +46,8 @@ func evalRangeWithContext(input string, state *RangeState, context *evalContext)
 	node := parseRange(items)
 	parseError := findError(node)
 	if parseError != nil {
-		return nil, parseError
+		return []string{}, parseError
 	}
-	//fmt.Printf("%s\n", node)
 
 	return node.(EvalNode).visit(state, context), nil
 }
@@ -59,7 +58,7 @@ func (n ClusterLookupNode) visit(state *RangeState, _ *evalContext) []string {
 
 func (n LocalClusterLookupNode) visit(state *RangeState, context *evalContext) []string {
 	if context.currentClusterName == "" {
-		panic("Unimplemented")
+		return groupLookup(state, n.key)
 	}
 
 	return clusterLookup(state, context.currentClusterName, n.key)
@@ -82,7 +81,7 @@ func (n SubexprNode) visit(state *RangeState, context *evalContext) []string {
 }
 
 func (n GroupLookupNode) visit(state *RangeState, _ *evalContext) []string {
-	return state.groups[n.name]
+	return groupLookup(state, n.name)
 }
 
 func (n IntersectNode) visit(state *RangeState, context *evalContext) []string {
@@ -192,13 +191,12 @@ func (state *RangeState) allValues() []string {
 	accum := map[string]bool{}
 
 	// Expand everything into the set
-	for clusterName, c := range state.clusters {
-		for _, v := range c {
-			for _, subv := range v {
-				expansion, _ := evalRangeWithContext(subv, state, &evalContext{
-					currentClusterName: clusterName,
-				})
+	for _, v := range state.groups {
+		for _, subv := range v {
+			expansion, err := evalRange(subv, state)
 
+			// TODO: Ignoring errors, probably should get rid of them on initial load.
+			if err == nil {
 				for _, x := range expansion {
 					accum[x] = true
 				}
@@ -216,6 +214,18 @@ func (state *RangeState) allValues() []string {
 
 func (n ErrorNode) visit(state *RangeState, context *evalContext) []string {
 	panic("should not happen")
+}
+
+func groupLookup(state *RangeState, key string) []string {
+	clusterExp := state.groups[key]
+
+	result := []string{}
+
+	for _, value := range clusterExp {
+		expansion, _ := evalRange(value, state)
+		result = append(result, expansion...)
+	}
+	return result
 }
 
 func clusterLookup(state *RangeState, clusterName string, key string) []string {
