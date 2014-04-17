@@ -45,8 +45,9 @@ func (r *RangeQuery) AddClusterLookup(name string) {
 	r.pushNode(ClusterLookupNode{name, "CLUSTER"})
 }
 
-func (r *RangeQuery) AddGroupLookup(name string) {
-	r.pushNode(GroupLookupNode{name})
+func (r *RangeQuery) AddGroupLookup() {
+	exprNode := r.popNode()
+	r.pushNode(GroupLookupNode{exprNode})
 }
 
 func (r *RangeQuery) AddGroupQuery() {

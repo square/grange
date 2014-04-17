@@ -37,7 +37,7 @@ type LocalClusterLookupNode struct {
 }
 
 type GroupLookupNode struct {
-	name string
+	node Node
 }
 
 type GroupQueryNode struct {
@@ -100,7 +100,7 @@ func (n SubexprNode) String() string {
 }
 
 func (n GroupLookupNode) String() string {
-	return fmt.Sprintf("@%s", n.name)
+	return fmt.Sprintf("@%s", n.node)
 }
 
 func (n GroupQueryNode) String() string {

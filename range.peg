@@ -10,14 +10,13 @@ expression <- rangeexpr combinators? !.
 rangeexpr <- space
     ( q
     / function
-    / subexpr
     / cluster
     / group
     / groupq
     / localkey
     / regex
     / value
-    / { p.AddNull() } braces
+    / { p.AddNull() } braces # Maybe a better way to match this?
     / null)
 
 combinators <- space (union / intersect / exclude / braces)
@@ -28,16 +27,12 @@ union       <- ',' rangeexpr { p.AddOperator(operatorUnion) }
 # See https://github.com/pointlander/peg/issues/21 for context
 braces  <- '{' rangeexpr combinators? '}' rangeexpr? { p.AddBraces() }
 
-subexpr <- '%{' rangeexpr '}' { p.AddSubexpr() } key?
-
 groupq  <- '?' rangeexpr { p.AddGroupQuery() }
+cluster <- '%' rangeexpr { p.AddSubexpr() } key?
+group   <- '@' rangeexpr { p.AddGroupLookup() }
 
-# TODO: Following two probably need to look for expr, not literal. That then
-# takes care of subexpr too.
-cluster <- '%' literal { p.AddClusterLookup(buffer[begin:end]) } key?
-group   <- '@' literal { p.AddGroupLookup(buffer[begin:end]) }
-
-key     <- ':' literal { p.AddKeyLookup(buffer[begin:end]) }
+# TODO: Use rangeexpr for the following?
+key      <- ':' literal { p.AddKeyLookup(buffer[begin:end]) }
 localkey <- '$' literal { p.AddLocalClusterLookup(buffer[begin:end]) }
 
 function <- literal { p.AddFunction(buffer[begin:end]) } '(' funcargs ')'

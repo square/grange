@@ -113,8 +113,14 @@ func (n SubexprNode) visit(state *RangeState, context *evalContext) []string {
 	return result
 }
 
-func (n GroupLookupNode) visit(state *RangeState, _ *evalContext) []string {
-	return groupLookup(state, n.name)
+func (n GroupLookupNode) visit(state *RangeState, context *evalContext) []string {
+	toLookup := n.node.(EvalNode).visit(state, context)
+
+	result := []string{}
+	for _, key := range toLookup {
+		result = append(result, groupLookup(state, key)...)
+	}
+	return result
 }
 
 func (n OperatorNode) visit(state *RangeState, context *evalContext) []string {
