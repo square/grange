@@ -205,9 +205,11 @@ func (n ConstantNode) visit(state *RangeState, context *evalContext) error {
 	return nil
 }
 
+var (
+	numericRangeRegexp = regexp.MustCompile("^(.*?)(\\d+)\\.\\.([^\\d]*?)?(\\d+)(.*)$")
+)
+
 func (n TextNode) visit(state *RangeState, context *evalContext) error {
-	numericRangeRegexp :=
-		regexp.MustCompile("^(.*)(\\d+)\\.\\.([^\\d]*)?(\\d+)(.*)$")
 	match := numericRangeRegexp.FindStringSubmatch(n.val)
 
 	if len(match) == 0 {
@@ -215,30 +217,34 @@ func (n TextNode) visit(state *RangeState, context *evalContext) error {
 		return nil
 	}
 
-	// Need to massage captures to be able to compare non-digit components.
-	firstStr := match[1]
+	leftStr := match[1]
+	leftStrToMatch := match[1]
+	leftN := match[2]
+	rightStr := match[3]
+	rightN := match[4]
+	trailing := match[5]
+
 	for {
-		if len(firstStr) == 0 {
+		if len(leftN) <= len(rightN) {
 			break
 		}
-		char := firstStr[len(firstStr)-1:]
-		if _, err := strconv.Atoi(char); err != nil {
-			break
-		}
-		firstStr = firstStr[:len(firstStr)-1]
+
+		leftStr += leftN[0:1]
+		leftN = leftN[1:]
 	}
 
 	// a1..a4 is valid, a1..b4 is invalid
-	if len(match[3]) != 0 && firstStr != match[3] {
+	if len(rightStr) != 0 && leftStrToMatch != rightStr {
 		context.currentResult.Add(n.val)
 		return nil
 	}
 
-	low, _ := strconv.Atoi(match[2])
-	high, _ := strconv.Atoi(match[4])
+	width := strconv.Itoa(len(leftN))
+	low, _ := strconv.Atoi(leftN)
+	high, _ := strconv.Atoi(rightN)
 
 	for x := low; x <= high; x++ {
-		context.currentResult.Add(fmt.Sprintf("%s%d%s", match[1], x, match[5]))
+		context.currentResult.Add(fmt.Sprintf("%s%0"+width+"d%s", leftStr, x, trailing))
 	}
 
 	return nil
