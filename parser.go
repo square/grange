@@ -1,247 +1,88 @@
 package grange
 
-import (
-	"fmt"
-	"strings"
-)
-
-// TODO: Don't export these node types
-type Node interface {
-	merge(Node) Node
+func (r *RangeQuery) popNode() Node {
+	l := len(r.nodeStack)
+	result := r.nodeStack[l-1]
+	r.nodeStack = r.nodeStack[:l-1]
+	return result
 }
 
-type NullNode struct{}
-
-type TextNode struct {
-	val string
+func (r *RangeQuery) pushNode(node Node) {
+	r.nodeStack = append(r.nodeStack, node)
 }
 
-type MatchNode struct {
-	val string
+func (r *RangeQuery) AddValue(val string) {
+	r.pushNode(TextNode{val})
 }
 
-type ClusterLookupNode struct {
-	name string
-	key  string
+func (r *RangeQuery) AddNull() {
+	r.pushNode(NullNode{})
 }
 
-type GroupLookupNode struct {
-	name string
+func (r *RangeQuery) AddFuncArg() {
+	var funcNode Node
+
+	paramNode := r.popNode()
+	funcNode = r.nodeStack[len(r.nodeStack)-1]
+	fn := funcNode.(FunctionNode)
+	fn.params = append(fn.params, paramNode)
+	r.nodeStack[len(r.nodeStack)-1] = fn
 }
 
-type SubexprNode struct {
-	expr Node
-	key  string
+func (r *RangeQuery) AddBraces() {
+	right := r.popNode()
+	node := r.popNode()
+	var left Node
+	if len(r.nodeStack) == 0 {
+		left = NullNode{}
+	} else {
+		left = r.popNode()
+	}
+	r.pushNode(BracesNode{node, left, right})
 }
 
-type IntersectNode struct {
-	left  Node
-	right Node
+func (r *RangeQuery) AddClusterLookup(name string) {
+	r.pushNode(ClusterLookupNode{name, "CLUSTER"})
 }
 
-type ExcludeNode struct {
-	left  Node
-	right Node
+func (r *RangeQuery) AddGroupLookup(name string) {
+	r.pushNode(GroupLookupNode{name})
 }
 
-type ErrorNode struct {
-	message string
+func (r *RangeQuery) AddLocalClusterLookup(key string) {
+	r.pushNode(LocalClusterLookupNode{key})
 }
 
-type GroupNode struct {
-	head Node
-	tail Node
+func (r *RangeQuery) AddFunction(name string) {
+	r.pushNode(FunctionNode{name, []Node{}})
 }
 
-type HasNode struct {
-	key   string
-	match string
+func (r *RangeQuery) AddSubexpr() {
+	exprNode := r.popNode()
+	r.pushNode(SubexprNode{exprNode, "CLUSTER"})
 }
 
-type LocalClusterLookupNode struct {
-	key string
+func (r *RangeQuery) AddRegex(val string) {
+	r.pushNode(RegexNode{val})
 }
 
-func (n GroupNode) merge(other Node) Node {
-	return GroupNode{n.head.merge(other), n.tail.merge(other)}
-}
-
-func (n SubexprNode) merge(other Node) Node {
-	return n // TODO: what does this even mean
-}
-
-func (n TextNode) merge(other Node) Node {
-	switch other.(type) {
-	case TextNode:
-		return TextNode{n.val + other.(TextNode).val}
-	case GroupNode:
-		group := other.(GroupNode)
-		return GroupNode{n.merge(group.head), n.merge(group.tail)}
-	default:
-		return n
+func (r *RangeQuery) AddKeyLookup(key string) {
+	node := r.popNode()
+	switch node.(type) {
+	case ClusterLookupNode:
+		n := node.(ClusterLookupNode)
+		n.key = key
+		r.pushNode(n)
+	case SubexprNode:
+		n := node.(SubexprNode)
+		n.key = key
+		r.pushNode(n)
 	}
 }
 
-func (n MatchNode) merge(other Node) Node {
-	return n // TODO: what?
-}
+func (r *RangeQuery) AddOperator(typ operatorType) {
+	right := r.popNode()
+	left := r.popNode()
 
-func (n ClusterLookupNode) merge(other Node) Node {
-	return n
-}
-
-func (n LocalClusterLookupNode) merge(other Node) Node {
-	return n
-}
-
-func (n GroupLookupNode) merge(other Node) Node {
-	return n
-}
-
-func (n ErrorNode) merge(other Node) Node {
-	return n
-}
-
-func (n HasNode) merge(other Node) Node {
-	return n
-}
-
-func (n IntersectNode) merge(other Node) Node {
-	panic("how did you even get here")
-}
-
-func (n ExcludeNode) merge(other Node) Node {
-	panic("how did you even get here")
-}
-
-func parseRange(items chan item) Node {
-	var currentNode Node
-	var subNode Node
-
-	for currentItem := range items {
-		//fmt.Printf("Parse item: %s\n", currentItem)
-		switch currentItem.typ {
-		case itemText:
-			if currentNode != nil {
-				currentNode = currentNode.merge(TextNode{currentItem.val})
-			} else {
-				currentNode = TextNode{currentItem.val}
-			}
-		case itemGroupLookup:
-			currentNode = GroupLookupNode{currentItem.val}
-		case itemFunctionName:
-			if currentItem.val != "has" {
-				return ErrorNode{fmt.Sprintf("Unknown function: %s", currentItem.val)}
-			}
-
-			paramItem := <-items
-
-			if paramItem.typ != itemFunctionParam {
-				return ErrorNode{fmt.Sprintf("Expecting parameter to function %s", currentItem.val)}
-			} else {
-				functionParam := paramItem.val
-
-				tokens := strings.Split(functionParam, ";")
-
-				if len(tokens) != 2 {
-					return ErrorNode{fmt.Sprintf("Invalid function parameter: %s", functionParam)}
-				}
-
-				currentNode = HasNode{tokens[0], tokens[1]}
-			}
-		case itemCluster:
-			currentNode = ClusterLookupNode{currentItem.val, "CLUSTER"}
-		case itemClusterKey:
-			switch currentNode.(type) {
-			case ClusterLookupNode:
-				n := currentNode.(ClusterLookupNode)
-				currentNode = ClusterLookupNode{n.name, currentItem.val}
-			case SubexprNode:
-				n := currentNode.(SubexprNode)
-				currentNode = SubexprNode{n.expr, currentItem.val}
-			default:
-				return ErrorNode{fmt.Sprintf(":%s must follow a cluster", currentItem.val)}
-			}
-		case itemLocalClusterKey:
-			currentNode = LocalClusterLookupNode{currentItem.val}
-		case itemLeftGroup:
-			// Find closing right group
-			stack := 1
-			subitems := make(chan item, 1000)
-			subparse := true
-			for subparse {
-				subItem := <-items
-
-				switch subItem.typ {
-				case itemEOF:
-					return ErrorNode{"No matching closing bracket"}
-				case itemLeftGroup:
-					stack++
-				case itemRightGroup:
-					stack--
-					if stack == 0 {
-						subitems <- item{itemEOF, ""}
-						close(subitems)
-						subNode = parseRange(subitems)
-						subparse = false
-					}
-				}
-
-				if !subparse {
-					break
-				}
-				subitems <- subItem
-			}
-			if currentNode != nil {
-				currentNode = currentNode.merge(subNode)
-			} else {
-				currentNode = subNode
-			}
-		case itemComma:
-			if currentNode != nil {
-				return GroupNode{currentNode, parseRange(items)}
-			}
-		case itemSubexprStart:
-			// TODO: Merge
-			currentNode = parseSubexpr(items)
-		case itemMatch:
-			// TODO: Merge
-			currentNode = MatchNode{currentItem.val}
-		case itemIntersect:
-			if currentNode == nil {
-				currentNode = ErrorNode{"No left side provided for intersection"}
-			}
-
-			return IntersectNode{currentNode, parseRange(items)}
-		case itemExclude:
-			if currentNode == nil {
-				currentNode = ErrorNode{"No left side provided for exclusion"}
-			}
-
-			return ExcludeNode{currentNode, parseRange(items)}
-		case itemError:
-			return ErrorNode{currentItem.val}
-		case itemEOF:
-			return currentNode
-		}
-	}
-	panic("Unreachable")
-}
-
-func parseSubexpr(items chan item) Node {
-	subItems := make(chan item, 1000) // TODO: Don't use a bounded channel like this
-
-	for currentItem := range items {
-		switch currentItem.typ {
-		case itemSubexprEnd:
-			subItems <- item{itemEOF, ""}
-			return SubexprNode{parseRange(subItems), "CLUSTER"}
-		case itemEOF:
-			return ErrorNode{"Could not find end of subexpr"}
-		default:
-			subItems <- currentItem
-		}
-	}
-
-	panic("Unreachable")
+	r.pushNode(OperatorNode{typ, left, right})
 }

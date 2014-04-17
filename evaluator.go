@@ -1,7 +1,6 @@
 package grange
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -32,6 +31,16 @@ func NewState() RangeState {
 	}
 }
 
+func parseRange(input string) (Node, error) {
+	r := &RangeQuery{Buffer: input}
+	r.Init()
+	if err := r.Parse(); err != nil {
+		return nil, err
+	}
+	r.Execute()
+	return r.nodeStack[0], nil
+}
+
 func EvalRange(input string, state *RangeState) (result []string, err error) {
 	return evalRange(input, state)
 }
@@ -41,10 +50,7 @@ func evalRange(input string, state *RangeState) (result []string, err error) {
 }
 
 func evalRangeWithContext(input string, state *RangeState, context *evalContext) (result []string, err error) {
-	_, items := lexRange("eval", input)
-
-	node := parseRange(items)
-	parseError := findError(node)
+	node, parseError := parseRange(input)
 	if parseError != nil {
 		return []string{}, parseError
 	}
@@ -56,6 +62,33 @@ func (n ClusterLookupNode) visit(state *RangeState, _ *evalContext) []string {
 	return clusterLookup(state, n.name, n.key)
 }
 
+func (n BracesNode) visit(state *RangeState, context *evalContext) []string {
+	result := []string{}
+	left := n.left.(EvalNode).visit(state, context)
+	right := n.right.(EvalNode).visit(state, context)
+	middle := n.node.(EvalNode).visit(state, context)
+
+	if len(left) == 0 {
+		left = []string{""}
+	}
+	if len(middle) == 0 {
+		middle = []string{""}
+	}
+	if len(right) == 0 {
+		right = []string{""}
+	}
+
+	for _, l := range left {
+		for _, m := range middle {
+			for _, r := range right {
+				result = append(result, fmt.Sprintf("%s%s%s", l, m, r))
+			}
+		}
+	}
+
+	return result
+}
+
 func (n LocalClusterLookupNode) visit(state *RangeState, context *evalContext) []string {
 	if context.currentClusterName == "" {
 		return groupLookup(state, n.key)
@@ -65,7 +98,7 @@ func (n LocalClusterLookupNode) visit(state *RangeState, context *evalContext) [
 }
 
 func (n SubexprNode) visit(state *RangeState, context *evalContext) []string {
-	clusters := n.expr.(EvalNode).visit(state, context)
+	clusters := n.node.(EvalNode).visit(state, context)
 	accum := map[string]bool{}
 
 	for _, cluster := range clusters {
@@ -84,91 +117,110 @@ func (n GroupLookupNode) visit(state *RangeState, _ *evalContext) []string {
 	return groupLookup(state, n.name)
 }
 
-func (n IntersectNode) visit(state *RangeState, context *evalContext) []string {
-	result := []string{}
-	leftSide := n.left.(EvalNode).visit(state, context)
+func (n OperatorNode) visit(state *RangeState, context *evalContext) []string {
+	switch n.op {
+	case operatorIntersect:
 
-	if len(leftSide) == 0 {
-		// Optimization: no need to compute right side if left side is empty
+		result := []string{}
+		leftSide := n.left.(EvalNode).visit(state, context)
+
+		if len(leftSide) == 0 {
+			// Optimization: no need to compute right side if left side is empty
+			return result
+		}
+
+		context.currentResult = leftSide
+		rightSide := n.right.(EvalNode).visit(state, context)
+		context.currentResult = nil
+
+		set := map[string]bool{}
+		for _, x := range leftSide {
+			set[x] = true
+		}
+		for _, y := range rightSide {
+			if len(result) == len(leftSide) {
+				// Optimization: early exit when all results have been computed.
+				break
+			}
+
+			if set[y] {
+				result = append(result, y)
+			}
+		}
+		return result
+
+	case operatorSubtract:
+		result := []string{}
+		leftSide := n.left.(EvalNode).visit(state, context)
+
+		if len(leftSide) == 0 {
+			// Optimization: no need to compute right side if left side is empty
+			return result
+		}
+
+		context.currentResult = leftSide
+		rightSide := n.right.(EvalNode).visit(state, context)
+		context.currentResult = nil
+
+		set := map[string]bool{}
+		for _, x := range rightSide {
+			set[x] = true
+		}
+		for _, y := range leftSide {
+			if !set[y] {
+				result = append(result, y)
+			}
+		}
+		return result
+	case operatorUnion:
+		result := []string{}
+		leftSide := n.left.(EvalNode).visit(state, context)
+		rightSide := n.right.(EvalNode).visit(state, context)
+
+		set := map[string]bool{}
+		for _, x := range leftSide {
+			set[x] = true
+		}
+		for _, x := range rightSide {
+			set[x] = true
+		}
+		for x, _ := range set {
+			result = append(result, x)
+		}
 		return result
 	}
-
-	context.currentResult = leftSide
-	rightSide := n.right.(EvalNode).visit(state, context)
-	context.currentResult = nil
-
-	set := map[string]bool{}
-	for _, x := range leftSide {
-		set[x] = true
-	}
-	for _, y := range rightSide {
-		if len(result) == len(leftSide) {
-			// Optimization: early exit when all results have been computed.
-			break
-		}
-
-		if set[y] {
-			result = append(result, y)
-		}
-	}
-	return result
-}
-
-func (n ExcludeNode) visit(state *RangeState, context *evalContext) []string {
-	result := []string{}
-	leftSide := n.left.(EvalNode).visit(state, context)
-
-	if len(leftSide) == 0 {
-		// Optimization: no need to compute right side if left side is empty
-		return result
-	}
-
-	context.currentResult = leftSide
-	rightSide := n.right.(EvalNode).visit(state, context)
-	context.currentResult = nil
-
-	set := map[string]bool{}
-	for _, x := range rightSide {
-		set[x] = true
-	}
-	for _, y := range leftSide {
-		if !set[y] {
-			result = append(result, y)
-		}
-	}
-	return result
+	return []string{}
 }
 
 func (n TextNode) visit(state *RangeState, context *evalContext) []string {
 	return []string{n.val}
 }
 
-func (n GroupNode) visit(state *RangeState, context *evalContext) []string {
-	return append(
-		n.head.(EvalNode).visit(state, context),
-		n.tail.(EvalNode).visit(state, context)...,
-	)
-}
+func (n FunctionNode) visit(state *RangeState, context *evalContext) []string {
+	switch n.name {
+	case "has":
+		result := []string{}
 
-func (n HasNode) visit(state *RangeState, context *evalContext) []string {
-	result := []string{}
+		for clusterName, cluster := range state.clusters {
+			// TODO: Error handling when no or multiple results
+			values := cluster[n.params[0].(EvalNode).visit(state, context)[0]]
 
-	for clusterName, cluster := range state.clusters {
-		values := cluster[n.key]
-
-		if values != nil {
-			for _, value := range values {
-				if value == n.match {
-					result = append(result, clusterName)
+			if values != nil {
+				for _, value := range values {
+					// TODO: Error handling when no or multiple results
+					if value == n.params[1].(EvalNode).visit(state, context)[0] {
+						result = append(result, clusterName)
+					}
 				}
 			}
 		}
-	}
 
-	return result
+		return result
+	}
+	return []string{}
 }
 
-func (n MatchNode) visit(state *RangeState, context *evalContext) []string {
+func (n RegexNode) visit(state *RangeState, context *evalContext) []string {
 	var toMatch []string
 	result := []string{}
 	if context.currentResult != nil {
@@ -184,6 +236,10 @@ func (n MatchNode) visit(state *RangeState, context *evalContext) []string {
 	}
 
 	return result
+}
+
+func (n NullNode) visit(state *RangeState, context *evalContext) []string {
+	return []string{}
 }
 
 func (state *RangeState) allValues() []string {
@@ -210,10 +266,6 @@ func (state *RangeState) allValues() []string {
 		result = append(result, k)
 	}
 	return result
-}
-
-func (n ErrorNode) visit(state *RangeState, context *evalContext) []string {
-	panic("should not happen")
 }
 
 func groupLookup(state *RangeState, key string) []string {
@@ -248,61 +300,6 @@ func clusterLookup(state *RangeState, clusterName string, key string) []string {
 		result = append(result, expansion...)
 	}
 	return result
-}
-
-func (n IntersectNode) String() string {
-	return fmt.Sprintf("<%s & %s>", n.left, n.right)
-}
-
-func (n ExcludeNode) String() string {
-	return fmt.Sprintf("<%s - %s>", n.left, n.right)
-}
-
-func (n ClusterLookupNode) String() string {
-	return fmt.Sprintf("%%%s:%s", n.name, n.key)
-}
-
-func (n GroupLookupNode) String() string {
-	return fmt.Sprintf("@%s", n.name)
-}
-
-func (n LocalClusterLookupNode) String() string {
-	return fmt.Sprintf("$%s", n.key)
-}
-
-func (n TextNode) String() string {
-	return fmt.Sprintf("%s", n.val)
-}
-
-func (n HasNode) String() string {
-	return fmt.Sprintf("has(%s;%s)", n.key, n.match)
-}
-
-func findError(n Node) error {
-	switch n.(type) {
-	case ErrorNode:
-		return errors.New(n.(ErrorNode).message)
-	case GroupNode: // TODO: How to remove all the duplication below?
-		err := findError(n.(GroupNode).head)
-		if err != nil {
-			return err
-		}
-		return findError(n.(GroupNode).tail)
-	case IntersectNode:
-		err := findError(n.(IntersectNode).left)
-		if err != nil {
-			return err
-		}
-		return findError(n.(IntersectNode).right)
-	case ExcludeNode:
-		err := findError(n.(ExcludeNode).left)
-		if err != nil {
-			return err
-		}
-		return findError(n.(ExcludeNode).right)
-	default:
-		return nil
-	}
 }
 
 type EvalNode interface {
