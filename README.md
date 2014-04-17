@@ -34,6 +34,7 @@ Supported Syntax
 * `/match/`
 * `clusters(example.com)`
 * `has(TYPE;%{clusters(a.example.com)}:TYPE)` (range expression in parameter)
+* `q(http://blah)`
 * Expressions as values.
 * Extraneous whitespace.
 
@@ -41,7 +42,6 @@ Supported Syntax
 
 * `a1..9.example.com`
 * `?example.com`
-* `q(http://blah)`
 * `%cluster:{KEY1,KEY2}`
 
 Development

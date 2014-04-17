@@ -182,6 +182,11 @@ func TestClusters(t *testing.T) {
 	}))
 }
 
+func TestQ(t *testing.T) {
+  testEval(t, []string{"(/"}, "q((/)", emptyState())
+  testEval(t, []string{"http://foo/bar?yeah"}, "q(http://foo/bar?yeah)", emptyState())
+}
+
 func testError(t *testing.T, expected string, query string) {
 	_, err := evalRange(query, emptyState())
 
