@@ -15,15 +15,17 @@ rangeexpr <- space
     / group
     / localkey
     / regex
-    / value)
+    / value
+    / { p.AddNull() } braces
+    / null)
 
-combinators <- space (braces / union / intersect / exclude)
+combinators <- space (union / intersect / exclude / braces)
 intersect   <- '&' rangeexpr { p.AddOperator(operatorIntersect) }
 exclude     <- '-' rangeexpr { p.AddOperator(operatorSubtract) }
 union       <- ',' rangeexpr { p.AddOperator(operatorUnion) }
 
 # See https://github.com/pointlander/peg/issues/21 for context
-braces  <- '{' rangeexpr (union / intersect / exclude)'}'
+braces  <- '{' rangeexpr combinators? '}' rangeexpr? { p.AddBraces() }
 
 subexpr <- '%{' rangeexpr '}' { p.AddSubexpr() } key?
 cluster <- '%' literal { p.AddClusterLookup(buffer[begin:end]) } key?
@@ -38,5 +40,5 @@ funcargs <- rangeexpr { p.AddFuncArg() } ';' funcargs
 regex   <- '/' < (!'/' .)* > '/' { p.AddRegex(buffer[begin:end]) }
 literal <- <[[a-z0-9-_]]+>
 value   <- <[[a-z0-9-_.]]+> { p.AddValue(buffer[begin:end]) }
-q       <- 'q(' <(!')' .)*> ')' { p.AddValue(buffer[begin:end]) }
 space   <- ' '*
+q       <- 'q(' <(!')' .)*> ')' { p.AddValue(buffer[begin:end]) }

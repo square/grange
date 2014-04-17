@@ -1,6 +1,7 @@
 package grange
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -59,6 +60,33 @@ func evalRangeWithContext(input string, state *RangeState, context *evalContext)
 
 func (n ClusterLookupNode) visit(state *RangeState, _ *evalContext) []string {
 	return clusterLookup(state, n.name, n.key)
+}
+
+func (n BracesNode) visit(state *RangeState, context *evalContext) []string {
+	result := []string{}
+	left := n.left.(EvalNode).visit(state, context)
+	right := n.right.(EvalNode).visit(state, context)
+	middle := n.node.(EvalNode).visit(state, context)
+
+	if len(left) == 0 {
+		left = []string{""}
+	}
+	if len(middle) == 0 {
+		middle = []string{""}
+	}
+	if len(right) == 0 {
+		right = []string{""}
+	}
+
+	for _, l := range left {
+		for _, m := range middle {
+			for _, r := range right {
+				result = append(result, fmt.Sprintf("%s%s%s", l, m, r))
+			}
+		}
+	}
+
+	return result
 }
 
 func (n LocalClusterLookupNode) visit(state *RangeState, context *evalContext) []string {
@@ -168,15 +196,6 @@ func (n TextNode) visit(state *RangeState, context *evalContext) []string {
 	return []string{n.val}
 }
 
-/*
-func (n GroupNode) visit(state *RangeState, context *evalContext) []string {
-	return append(
-		n.head.(EvalNode).visit(state, context),
-		n.tail.(EvalNode).visit(state, context)...,
-	)
-}
-*/
-
 func (n FunctionNode) visit(state *RangeState, context *evalContext) []string {
 	switch n.name {
 	case "has":
@@ -217,6 +236,10 @@ func (n RegexNode) visit(state *RangeState, context *evalContext) []string {
 	}
 
 	return result
+}
+
+func (n NullNode) visit(state *RangeState, context *evalContext) []string {
+	return []string{}
 }
 
 func (state *RangeState) allValues() []string {

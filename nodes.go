@@ -51,6 +51,12 @@ type OperatorNode struct {
 	right Node
 }
 
+type BracesNode struct {
+	node  Node
+	left  Node
+	right Node
+}
+
 type FunctionNode struct {
 	name   string
 	params []Node
@@ -95,6 +101,10 @@ func (n GroupLookupNode) String() string {
 
 func (n LocalClusterLookupNode) String() string {
 	return fmt.Sprintf("$%s", n.key)
+}
+
+func (n BracesNode) String() string {
+	return fmt.Sprintf("%s{%s}%s", n.node, n.left, n.right)
 }
 
 func (n NullNode) String() string {

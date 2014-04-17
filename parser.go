@@ -1,7 +1,5 @@
 package grange
 
-import ()
-
 func (r *RangeQuery) popNode() Node {
 	l := len(r.nodeStack)
 	result := r.nodeStack[l-1]
@@ -17,6 +15,10 @@ func (r *RangeQuery) AddValue(val string) {
 	r.pushNode(TextNode{val})
 }
 
+func (r *RangeQuery) AddNull() {
+	r.pushNode(NullNode{})
+}
+
 func (r *RangeQuery) AddFuncArg() {
 	var funcNode Node
 
@@ -25,6 +27,18 @@ func (r *RangeQuery) AddFuncArg() {
 	fn := funcNode.(FunctionNode)
 	fn.params = append(fn.params, paramNode)
 	r.nodeStack[len(r.nodeStack)-1] = fn
+}
+
+func (r *RangeQuery) AddBraces() {
+	right := r.popNode()
+	node := r.popNode()
+	var left Node
+	if len(r.nodeStack) == 0 {
+		left = NullNode{}
+	} else {
+		left = r.popNode()
+	}
+	r.pushNode(BracesNode{node, left, right})
 }
 
 func (r *RangeQuery) AddClusterLookup(name string) {
