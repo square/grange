@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/deckarep/golang-set"
 )
 
 type Cluster map[string][]string
@@ -16,7 +18,19 @@ type RangeState struct {
 
 type evalContext struct {
 	currentClusterName string
-	currentResult      []string
+	currentResult      mapset.Set
+	workingResult      *mapset.Set
+}
+
+func newContext() evalContext {
+	return evalContext{currentResult: mapset.NewSet()}
+}
+
+func newClusterContext(clusterName string) evalContext {
+	return evalContext{
+		currentClusterName: clusterName,
+		currentResult:      mapset.NewSet(),
+	}
 }
 
 func SetGroups(state *RangeState, c Cluster) {
@@ -33,6 +47,10 @@ func NewState() RangeState {
 	}
 }
 
+func NewResult(args ...interface{}) mapset.Set {
+	return mapset.NewSetFromSlice(args)
+}
+
 func parseRange(input string) (Node, error) {
 	r := &RangeQuery{Buffer: input}
 	r.Init()
@@ -43,170 +61,158 @@ func parseRange(input string) (Node, error) {
 	return r.nodeStack[0], nil
 }
 
-func EvalRange(input string, state *RangeState) (result []string, err error) {
+func EvalRange(input string, state *RangeState) (result mapset.Set, err error) {
 	return evalRange(input, state)
 }
 
-func evalRange(input string, state *RangeState) (result []string, err error) {
-	return evalRangeWithContext(input, state, &evalContext{})
+func evalRange(input string, state *RangeState) (result mapset.Set, err error) {
+	context := newContext()
+	return evalRangeWithContext(input, state, &context)
 }
 
-func evalRangeWithContext(input string, state *RangeState, context *evalContext) (result []string, err error) {
+func evalRangeWithContext(input string, state *RangeState, context *evalContext) (result mapset.Set, err error) {
+	parseError := evalRangeInplace(input, state, context)
+
+	return context.currentResult, parseError
+}
+
+// Useful internally so that results do not need to be copied all over the place
+func evalRangeInplace(input string, state *RangeState, context *evalContext) error {
 	node, parseError := parseRange(input)
 	if parseError != nil {
-		return []string{}, parseError
+		return parseError
 	}
 
-	return node.(EvalNode).visit(state, context), nil
+	node.(EvalNode).visit(state, context)
+	return nil
 }
 
-func (n BracesNode) visit(state *RangeState, context *evalContext) []string {
-	result := []string{}
-	left := n.left.(EvalNode).visit(state, context)
-	right := n.right.(EvalNode).visit(state, context)
-	middle := n.node.(EvalNode).visit(state, context)
+func (c evalContext) hasResults() bool {
+	return c.currentResult.Cardinality() == 0
+}
 
-	if len(left) == 0 {
-		left = []string{""}
+func (n BracesNode) visit(state *RangeState, context *evalContext) error {
+	leftContext := newContext()
+	rightContext := newContext()
+	middleContext := newContext()
+	// TODO: Handle errors
+	n.left.(EvalNode).visit(state, &leftContext)
+	n.node.(EvalNode).visit(state, &middleContext)
+	n.right.(EvalNode).visit(state, &rightContext)
+
+	if leftContext.hasResults() {
+		leftContext.addResult("")
 	}
-	if len(middle) == 0 {
-		middle = []string{""}
+	if middleContext.hasResults() {
+		middleContext.addResult("")
 	}
-	if len(right) == 0 {
-		right = []string{""}
+	if rightContext.hasResults() {
+		rightContext.addResult("")
 	}
 
-	for _, l := range left {
-		for _, m := range middle {
-			for _, r := range right {
-				result = append(result, fmt.Sprintf("%s%s%s", l, m, r))
+	for l := range leftContext.resultIter() {
+		for m := range middleContext.resultIter() {
+			for r := range rightContext.resultIter() {
+				context.addResult(fmt.Sprintf("%s%s%s", l, m, r))
 			}
 		}
 	}
 
-	return result
+	return nil
 }
 
-func (n LocalClusterLookupNode) visit(state *RangeState, context *evalContext) []string {
+func (n LocalClusterLookupNode) visit(state *RangeState, context *evalContext) error {
 	if context.currentClusterName == "" {
-		return groupLookup(state, n.key)
+		return groupLookup(state, context, n.key)
 	}
 
-	return clusterLookup(state, context.currentClusterName, n.key)
+	return clusterLookup(state, context, n.key)
 }
 
-func (n ClusterLookupNode) visit(state *RangeState, context *evalContext) []string {
-	clusters := n.node.(EvalNode).visit(state, context)
-	accum := map[string]bool{}
+func (n ClusterLookupNode) visit(state *RangeState, context *evalContext) error {
+	subContext := newContext()
+	n.node.(EvalNode).visit(state, &subContext)
 
-	for _, cluster := range clusters {
-		for _, x := range clusterLookup(state, cluster, n.key) {
-			accum[x] = true
-		}
+	for clusterName := range subContext.resultIter() {
+		context.currentClusterName = clusterName.(string)
+		clusterLookup(state, context, n.key)
 	}
-	result := []string{}
-	for x, _ := range accum {
-		result = append(result, x)
-	}
-	return result
+
+	return nil
 }
 
-func (n GroupLookupNode) visit(state *RangeState, context *evalContext) []string {
-	toLookup := n.node.(EvalNode).visit(state, context)
+func (n GroupLookupNode) visit(state *RangeState, context *evalContext) error {
+	subContext := context.sub()
+	n.node.(EvalNode).visit(state, &subContext) // TODO: Error handle
 
-	result := []string{}
-	for _, key := range toLookup {
-		result = append(result, groupLookup(state, key)...)
+	for key := range subContext.resultIter() {
+		groupLookup(state, context, key.(string))
 	}
-	return result
+
+	return nil
 }
 
-func (n OperatorNode) visit(state *RangeState, context *evalContext) []string {
+func (c evalContext) sub() evalContext {
+	return newClusterContext(c.currentClusterName)
+}
+
+func (n OperatorNode) visit(state *RangeState, context *evalContext) error {
 	switch n.op {
 	case operatorIntersect:
 
-		result := []string{}
-		leftSide := n.left.(EvalNode).visit(state, context)
+		leftContext := context.sub()
+		n.left.(EvalNode).visit(state, &leftContext) // TODO: Error handle
 
-		if len(leftSide) == 0 {
+		if leftContext.currentResult.Cardinality() == 0 {
 			// Optimization: no need to compute right side if left side is empty
-			return result
+			return nil
 		}
 
-		context.currentResult = leftSide
-		rightSide := n.right.(EvalNode).visit(state, context)
-		context.currentResult = nil
+		rightContext := context.sub()
+		// RegexNode needs to know about LHS to filter correctly
+		rightContext.workingResult = &leftContext.currentResult
+		n.right.(EvalNode).visit(state, &rightContext) // TODO: Error handle
 
-		set := map[string]bool{}
-		for _, x := range leftSide {
-			set[x] = true
-		}
-		for _, y := range rightSide {
-			if len(result) == len(leftSide) {
-				// Optimization: early exit when all results have been computed.
-				break
-			}
-
-			if set[y] {
-				result = append(result, y)
-			}
-		}
-		return result
+		// TODO: Would this ever throw away results? Can it be done inplace?
+		context.currentResult = leftContext.currentResult.Intersect(rightContext.currentResult)
 
 	case operatorSubtract:
-		result := []string{}
-		leftSide := n.left.(EvalNode).visit(state, context)
+		leftContext := context.sub()
+		n.left.(EvalNode).visit(state, &leftContext) // TODO: Error handle
 
-		if len(leftSide) == 0 {
+		if leftContext.currentResult.Cardinality() == 0 {
 			// Optimization: no need to compute right side if left side is empty
-			return result
+			return nil
 		}
 
-		context.currentResult = leftSide
-		rightSide := n.right.(EvalNode).visit(state, context)
-		context.currentResult = nil
+		rightContext := context.sub()
+		// RegexNode needs to know about LHS to filter correctly
+		rightContext.workingResult = &leftContext.currentResult
+		n.right.(EvalNode).visit(state, &rightContext) // TODO: Error handle
 
-		set := map[string]bool{}
-		for _, x := range rightSide {
-			set[x] = true
-		}
-		for _, y := range leftSide {
-			if !set[y] {
-				result = append(result, y)
-			}
-		}
-		return result
+		// TODO: Would this ever throw away results? Can it be done inplace?
+		context.currentResult = leftContext.currentResult.Difference(rightContext.currentResult)
 	case operatorUnion:
-		result := []string{}
-		leftSide := n.left.(EvalNode).visit(state, context)
-		rightSide := n.right.(EvalNode).visit(state, context)
-
-		set := map[string]bool{}
-		for _, x := range leftSide {
-			set[x] = true
-		}
-		for _, x := range rightSide {
-			set[x] = true
-		}
-		for x, _ := range set {
-			result = append(result, x)
-		}
-		return result
+		// TODO: Handle errors
+		n.left.(EvalNode).visit(state, context)
+		n.right.(EvalNode).visit(state, context)
 	}
-	return []string{}
+	return nil
 }
 
-func (n ConstantNode) visit(state *RangeState, context *evalContext) []string {
-	return []string{n.val}
+func (n ConstantNode) visit(state *RangeState, context *evalContext) error {
+	context.addResult(n.val)
+	return nil
 }
 
-func (n TextNode) visit(state *RangeState, context *evalContext) []string {
+func (n TextNode) visit(state *RangeState, context *evalContext) error {
 	numericRangeRegexp :=
 		regexp.MustCompile("^(.*)(\\d+)\\.\\.([^\\d]*)?(\\d+)(.*)$")
 	match := numericRangeRegexp.FindStringSubmatch(n.val)
 
 	if len(match) == 0 {
-		return []string{n.val}
+		context.currentResult.Add(n.val)
+		return nil
 	}
 
 	// Need to massage captures to be able to compare non-digit components.
@@ -224,177 +230,162 @@ func (n TextNode) visit(state *RangeState, context *evalContext) []string {
 
 	// a1..a4 is valid, a1..b4 is invalid
 	if len(match[3]) != 0 && firstStr != match[3] {
-		return []string{n.val}
+		context.currentResult.Add(n.val)
+		return nil
 	}
 
 	low, _ := strconv.Atoi(match[2])
 	high, _ := strconv.Atoi(match[4])
 
-	result := []string{}
 	for x := low; x <= high; x++ {
-		result = append(result, fmt.Sprintf("%s%d%s", match[1], x, match[5]))
+		context.currentResult.Add(fmt.Sprintf("%s%d%s", match[1], x, match[5]))
 	}
 
-	return result
+	return nil
 }
 
-func (n GroupQueryNode) visit(state *RangeState, context *evalContext) []string {
-	lookingFor := map[string]bool{}
+func (n GroupQueryNode) visit(state *RangeState, context *evalContext) error {
+	subContext := newContext()
+	// TODO: Handle errors
+	n.node.(EvalNode).visit(state, &subContext)
+	lookingFor := subContext.currentResult
 
-	nodes := n.node.(EvalNode).visit(state, context)
-	for _, node := range nodes {
-		lookingFor[node] = true
-	}
-
-	result := []string{}
 	for groupName, group := range state.groups {
+		groupContext := newContext()
 		for _, value := range group {
-			expanded, _ := evalRange(value, state)
-			for _, expandedValue := range expanded {
-				if lookingFor[expandedValue] {
-					result = append(result, groupName)
-					goto superbreak
-				}
+			// TODO: Handle errors
+			evalRangeInplace(value, state, &groupContext)
+		}
+
+		for x := range lookingFor {
+			if groupContext.currentResult.Contains(x) {
+				context.addResult(groupName)
+				break
 			}
 		}
-	superbreak:
 	}
-	return result
+	return nil
 }
 
-func (n FunctionNode) visit(state *RangeState, context *evalContext) []string {
+func (n FunctionNode) visit(state *RangeState, context *evalContext) error {
 	switch n.name {
 	case "has":
-		result := []string{}
+		// TODO: Error handling when no or multiple results
+		keyContext := newContext()
+		valueContext := newContext()
+		n.params[0].(EvalNode).visit(state, &keyContext)
+		n.params[1].(EvalNode).visit(state, &valueContext)
+
+		key := (<-keyContext.resultIter()).(string)
+		toMatch := (<-valueContext.resultIter()).(string)
 
 		for clusterName, cluster := range state.clusters {
-			// TODO: Error handling when no or multiple results
-			values := cluster[n.params[0].(EvalNode).visit(state, context)[0]]
-
-			if values != nil {
-				for _, value := range values {
-					// TODO: Error handling when no or multiple results
-					if value == n.params[1].(EvalNode).visit(state, context)[0] {
-						result = append(result, clusterName)
-					}
+			for _, value := range cluster[key] {
+				// TODO: Need to eval value?
+				if value == toMatch {
+					context.addResult(clusterName)
 				}
 			}
 		}
-
-		return result
 	case "clusters":
-		lookingFor := map[string]bool{}
-
 		// TODO: Error handling
-		nodes := n.params[0].(EvalNode).visit(state, context)
-		for _, node := range nodes {
-			lookingFor[node] = true
-		}
+		subContext := newContext()
+		n.params[0].(EvalNode).visit(state, &subContext)
 
-		result := []string{}
+		lookingFor := subContext.currentResult
+
 		for clusterName, cluster := range state.clusters {
 			for _, value := range cluster["CLUSTER"] {
 				// TODO: Handle errors?
-				expansion, _ := evalRangeWithContext(value, state, &evalContext{
-					currentClusterName: clusterName,
-				})
+				subContext = newClusterContext(clusterName)
+				expansion, _ := evalRangeWithContext(value, state, &subContext)
 
-				for _, expandedValue := range expansion {
-					if lookingFor[expandedValue] {
-						result = append(result, clusterName)
+				for expandedValue := range expansion.Iter() {
+					if lookingFor.Contains(expandedValue) {
+						context.addResult(clusterName)
 						goto superbreak // awww yeah
 					}
 				}
 			}
 		superbreak:
 		}
-		return result
 	}
-	return []string{}
+	return nil
 }
 
-func (n RegexNode) visit(state *RangeState, context *evalContext) []string {
-	var toMatch []string
-	result := []string{}
-	if context.currentResult != nil {
-		toMatch = context.currentResult
-	} else {
-		toMatch = state.allValues()
+func (n RegexNode) visit(state *RangeState, context *evalContext) error {
+	if context.workingResult == nil {
+		subContext := context.sub()
+		state.allValues(&subContext)
+		context.workingResult = &subContext.currentResult
 	}
 
-	for _, x := range toMatch {
-		if strings.Contains(x, n.val) {
-			result = append(result, x)
+	for x := range context.workingResult.Iter() {
+		if strings.Contains(x.(string), n.val) {
+			context.addResult(x.(string))
 		}
 	}
 
-	return result
+	return nil
 }
 
-func (n NullNode) visit(state *RangeState, context *evalContext) []string {
-	return []string{}
+func (n NullNode) visit(state *RangeState, context *evalContext) error {
+	return nil
 }
 
-func (state *RangeState) allValues() []string {
-	// Fake set
-	accum := map[string]bool{}
-
+func (state *RangeState) allValues(context *evalContext) error {
 	// Expand everything into the set
 	for _, v := range state.groups {
 		for _, subv := range v {
-			expansion, err := evalRange(subv, state)
-
-			// TODO: Ignoring errors, probably should get rid of them on initial load.
-			if err == nil {
-				for _, x := range expansion {
-					accum[x] = true
-				}
-			}
+			// TODO: Handle errors
+			evalRangeInplace(subv, state, context)
 		}
 	}
 
-	// Keys of map are the set
-	result := []string{}
-	for k, _ := range accum {
-		result = append(result, k)
-	}
-	return result
+	return nil
 }
 
-func groupLookup(state *RangeState, key string) []string {
+func groupLookup(state *RangeState, context *evalContext, key string) error {
 	clusterExp := state.groups[key]
 
-	result := []string{}
-
 	for _, value := range clusterExp {
-		expansion, _ := evalRange(value, state)
-		result = append(result, expansion...)
+		// TODO: Return errors correctly
+		evalRangeInplace(value, state, context)
 	}
-	return result
+	return nil
 }
 
-func clusterLookup(state *RangeState, clusterName string, key string) []string {
-	cluster := state.clusters[clusterName]
+func clusterLookup(state *RangeState, context *evalContext, key string) error {
+	cluster := state.clusters[context.currentClusterName]
+
 	if key == "KEYS" {
-		keys := []string{}
 		for k, _ := range cluster {
-			keys = append(keys, k)
+			context.currentResult.Add(k)
 		}
-		return keys
+		return nil
 	}
 
 	clusterExp := cluster[key] // TODO: Error handling
-	result := []string{}
+
+	subContext := newClusterContext(context.currentClusterName)
 
 	for _, value := range clusterExp {
-		expansion, _ := evalRangeWithContext(value, state, &evalContext{
-			currentClusterName: clusterName,
-		})
-		result = append(result, expansion...)
+		evalRangeInplace(value, state, &subContext)
 	}
-	return result
+	for x := range subContext.currentResult.Iter() {
+		context.addResult(x.(string))
+	}
+	return nil
+}
+
+func (c *evalContext) addResult(value string) {
+	c.currentResult.Add(value)
+}
+
+func (c *evalContext) resultIter() <-chan interface{} {
+	return c.currentResult.Iter()
 }
 
 type EvalNode interface {
-	visit(*RangeState, *evalContext) []string
+	visit(*RangeState, *evalContext) error
 }

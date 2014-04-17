@@ -1,34 +1,35 @@
 package grange
 
 import (
-	"fmt"
+	"github.com/deckarep/golang-set"
 	"reflect"
 	"testing"
 )
 
 func TestDefaultCluster(t *testing.T) {
-	testEval(t, []string{"b", "c"}, "%a", singleCluster("a", Cluster{
+	testEval(t, NewResult("b", "c"), "%a", singleCluster("a", Cluster{
 		"CLUSTER": []string{"b", "c"},
 	}))
 }
 
 func TestExplicitCluster(t *testing.T) {
-	testEval(t, []string{"b", "c"}, "%a:NODES", singleCluster("a", Cluster{
+	testEval(t, NewResult("b", "c"), "%a:NODES", singleCluster("a", Cluster{
 		"NODES": []string{"b", "c"},
 	}))
 }
 
 func TestClusterKeys(t *testing.T) {
-	testEval(t, []string{"NODES"}, "%a:KEYS", singleCluster("a", Cluster{
+	testEval(t, NewResult("NODES"), "%a:KEYS", singleCluster("a", Cluster{
 		"NODES": []string{"b", "c"},
 	}))
 }
 
 func TestClusterMissing(t *testing.T) {
-	testEval(t, []string{}, "%a", emptyState())
+	testEval(t, NewResult(), "%a", emptyState())
 }
+
 func TestClusterMissingKey(t *testing.T) {
-	testEval(t, []string{}, "%a:NODES", singleCluster("a", Cluster{}))
+	testEval(t, NewResult(), "%a:NODES", singleCluster("a", Cluster{}))
 }
 
 func TestErrorExplicitCluster(t *testing.T) {
@@ -40,7 +41,7 @@ func TestErrorClusterName(t *testing.T) {
 }
 
 func TestHas(t *testing.T) {
-	testEval(t, []string{"a", "b"}, "has(TYPE;one)", multiCluster(map[string]Cluster{
+	testEval(t, NewResult("a", "b"), "has(TYPE;one)", multiCluster(map[string]Cluster{
 		"a": Cluster{"TYPE": []string{"one", "two"}},
 		"b": Cluster{"TYPE": []string{"two", "one"}},
 		"c": Cluster{"TYPE": []string{"three"}},
@@ -48,21 +49,26 @@ func TestHas(t *testing.T) {
 }
 
 func TestHasIntersect(t *testing.T) {
-	testEval(t, []string{"b"}, "has(TYPE;one)&b", multiCluster(map[string]Cluster{
+	testEval(t, NewResult("b"), "has(TYPE;one)&b", multiCluster(map[string]Cluster{
 		"a": Cluster{"TYPE": []string{"one", "two"}},
 		"b": Cluster{"TYPE": []string{"two", "one"}},
 		"c": Cluster{"TYPE": []string{"three"}},
 	}))
 
-	testEval(t, []string{"b"}, "has(TYPE;two)&has(TYPE;three)", multiCluster(map[string]Cluster{
+	testEval(t, NewResult("b"), "has(TYPE;two)&has(TYPE;three)", multiCluster(map[string]Cluster{
 		"a": Cluster{"TYPE": []string{"one", "two"}},
 		"b": Cluster{"TYPE": []string{"two", "one", "three"}},
 		"c": Cluster{"TYPE": []string{"three"}},
 	}))
 }
 
-func TestIntersect(t *testing.T) {
-	testEval(t, []string{"c"}, "%a:L&%a:R", singleCluster("a", Cluster{
+func TestIntersectEasy(t *testing.T) {
+	testEval(t, NewResult("a"), "a & a", emptyState())
+	testEval(t, NewResult(), "a & b", emptyState())
+}
+
+func TestIntersectCluster(t *testing.T) {
+	testEval(t, NewResult("c"), "%a:L&%a:R", singleCluster("a", Cluster{
 		"L": []string{"b", "c"},
 		"R": []string{"c", "d"},
 	}))
@@ -75,18 +81,18 @@ func TestIntersectError(t *testing.T) {
 }
 */
 
-func TestUnion(t *testing.T) {
-	testEval(t, []string{"a", "b"}, "a,b", emptyState())
+func TestUnionEasy(t *testing.T) {
+	testEval(t, NewResult("a", "b"), "a,b", emptyState())
 }
 
 func TestBracesWithUnion(t *testing.T) {
-	testEval(t, []string{"a.c", "b.c"}, "{a,b}.c", emptyState())
-	testEval(t, []string{"a.b", "a.c"}, "a.{b,c}", emptyState())
-	testEval(t, []string{"a.b.d", "a.c.d"}, "a.{b,c}.d", emptyState())
+	testEval(t, NewResult("a.c", "b.c"), "{a,b}.c", emptyState())
+	testEval(t, NewResult("a.b", "a.c"), "a.{b,c}", emptyState())
+	testEval(t, NewResult("a.b.d", "a.c.d"), "a.{b,c}.d", emptyState())
 }
 
 func TestClusterUnion(t *testing.T) {
-	testEval(t, []string{"c", "d"}, "%a,%b", multiCluster(map[string]Cluster{
+	testEval(t, NewResult("c", "d"), "%a,%b", multiCluster(map[string]Cluster{
 		"a": Cluster{"CLUSTER": []string{"c"}},
 		"b": Cluster{"CLUSTER": []string{"d"}},
 	}))
@@ -100,13 +106,13 @@ func TestNoExpandInClusterName(t *testing.T) {
 */
 
 func TestSelfReferentialCluster(t *testing.T) {
-	testEval(t, []string{"b"}, "%a", multiCluster(map[string]Cluster{
+	testEval(t, NewResult("b"), "%a", multiCluster(map[string]Cluster{
 		"a": Cluster{"CLUSTER": []string{"$ALL"}, "ALL": []string{"b"}},
 	}))
 }
 
 func TestSelfReferentialClusterExpression(t *testing.T) {
-	testEval(t, []string{"a", "c"}, "%a", multiCluster(map[string]Cluster{
+	testEval(t, NewResult("a", "c"), "%a", multiCluster(map[string]Cluster{
 		"a": Cluster{
 			"CLUSTER": []string{"$ALL - $DOWN"},
 			"ALL":     []string{"a", "b", "c"},
@@ -116,32 +122,32 @@ func TestSelfReferentialClusterExpression(t *testing.T) {
 }
 
 func TestGroups(t *testing.T) {
-	testEval(t, []string{"a", "b"}, "@dc", singleGroup("dc", "a", "b"))
+	testEval(t, NewResult("a", "b"), "@dc", singleGroup("dc", "a", "b"))
 }
 
 func TestGroupsExpand(t *testing.T) {
-	testEval(t, []string{"c"}, "@a", multiGroup(Cluster{
+	testEval(t, NewResult("c"), "@a", multiGroup(Cluster{
 		"a": []string{"$b"},
 		"b": []string{"c"},
 	}))
 }
 
 func TestClusterLookup(t *testing.T) {
-	testEval(t, []string{"a"}, "%{has(TYPE;db)}", singleCluster("ignore", Cluster{
+	testEval(t, NewResult("a"), "%{has(TYPE;db)}", singleCluster("ignore", Cluster{
 		"CLUSTER": []string{"a"},
 		"TYPE":    []string{"db"},
 	}))
 }
 
 func TestClusterLookupExplicitKey(t *testing.T) {
-	testEval(t, []string{"a"}, "%{has(TYPE;db)}:NODES", singleCluster("ignore", Cluster{
+	testEval(t, NewResult("a"), "%{has(TYPE;db)}:NODES", singleCluster("ignore", Cluster{
 		"NODES": []string{"a"},
 		"TYPE":  []string{"db"},
 	}))
 }
 
 func TestClusterLookupDedup(t *testing.T) {
-	testEval(t, []string{"one", "two"}, "%{has(TYPE;one)}:TYPE", multiCluster(map[string]Cluster{
+	testEval(t, NewResult("one", "two"), "%{has(TYPE;one)}:TYPE", multiCluster(map[string]Cluster{
 		"a": Cluster{"TYPE": []string{"one", "two"}},
 		"b": Cluster{"TYPE": []string{"two", "one"}},
 		"c": Cluster{"TYPE": []string{"three"}},
@@ -149,23 +155,23 @@ func TestClusterLookupDedup(t *testing.T) {
 }
 
 func TestMatchNoContext(t *testing.T) {
-	testEval(t, []string{"ab"}, "/b/", singleGroup("b", "ab", "c"))
+	testEval(t, NewResult("ab"), "/b/", singleGroup("b", "ab", "c"))
 }
 
-func TestMatch(t *testing.T) {
-	testEval(t, []string{"ab", "ba", "abc"}, "%cluster & /b/",
+func TestMatchEasy(t *testing.T) {
+	testEval(t, NewResult("ab", "ba", "abc"), "%cluster & /b/",
 		singleCluster("cluster", Cluster{
 			"CLUSTER": []string{"ab", "ba", "abc", "ccc"},
 		}))
 }
 
 func TestMatchReverse(t *testing.T) {
-	testEval(t, []string{"ab", "ba", "abc"}, "/b/ & @group",
+	testEval(t, NewResult("ab", "ba", "abc"), "/b/ & @group",
 		singleGroup("group", "ab", "ba", "abc", "ccc"))
 }
 
-func TestMatchWithExclude(t *testing.T) {
-	testEval(t, []string{"ccc"}, "%cluster - /b/",
+func TestMatchWithSubtract(t *testing.T) {
+	testEval(t, NewResult("ccc"), "%cluster - /b/",
 		singleCluster("cluster", Cluster{
 			"CLUSTER": []string{"ab", "ba", "abc", "ccc"},
 		}))
@@ -176,20 +182,26 @@ func TestInvalidLex(t *testing.T) {
 }
 
 func TestClusters(t *testing.T) {
-	testEval(t, []string{"a", "b"}, "clusters(one)", multiCluster(map[string]Cluster{
+	testEval(t, NewResult("a", "b"), "clusters(one)", multiCluster(map[string]Cluster{
 		"a": Cluster{"CLUSTER": []string{"two", "one"}},
 		"b": Cluster{"CLUSTER": []string{"$ALL"}, "ALL": []string{"one"}},
 		"c": Cluster{"CLUSTER": []string{"three"}},
 	}))
 }
 
+func TestClustersEasy(t *testing.T) {
+	testEval(t, NewResult("a"), "clusters(one)", multiCluster(map[string]Cluster{
+		"a": Cluster{"CLUSTER": []string{"two", "one"}},
+	}))
+}
+
 func TestQ(t *testing.T) {
-	testEval(t, []string{"(/"}, "q((/)", emptyState())
-	testEval(t, []string{"http://foo/bar?yeah"}, "q(http://foo/bar?yeah)", emptyState())
+	testEval(t, NewResult("(/"), "q((/)", emptyState())
+	testEval(t, NewResult("http://foo/bar?yeah"), "q(http://foo/bar?yeah)", emptyState())
 }
 
 func TestQueryGroups(t *testing.T) {
-	testEval(t, []string{"one", "two"}, "?a", multiGroup(Cluster{
+	testEval(t, NewResult("one", "two"), "?a", multiGroup(Cluster{
 		"one":   []string{"a"},
 		"two":   []string{"$one"},
 		"three": []string{"b"},
@@ -197,33 +209,44 @@ func TestQueryGroups(t *testing.T) {
 }
 
 func TestNumericRange(t *testing.T) {
-	testEval(t, []string{"n01", "n02", "n03"}, "n01..n03", emptyState())
-	testEval(t, []string{"n01", "n02", "n03"}, "n01..n3", emptyState())
-
-	testEval(t, []string{"1", "2", "3"}, "1..3", emptyState())
-	testEval(t, []string{"n1", "n2", "n3"}, "n1..3", emptyState())
-	testEval(t, []string{"n1", "n2", "n3"}, "n1..n3", emptyState())
-	testEval(t, []string{}, "n2..n1", emptyState())
-	testEval(t, []string{"n9", "n10", "n11"}, "n9..11", emptyState())
-	testEval(t, []string{"n1", "n2", "n3"}, "n1..n03", emptyState())
-	testEval(t, []string{"n10", "n11"}, "n10..1", emptyState())
-	testEval(t, []string{"n1..2an3", "n1..2an4"}, "n1..2an3..4", emptyState())
-	testEval(t, []string{"n1..3"}, "q(n1..3)", emptyState())
+	testEval(t, NewResult("n01", "n02", "n03"), "n01..n03", emptyState())
+	testEval(t, NewResult("n01", "n02", "n03"), "n01..n3", emptyState())
+	testEval(t, NewResult("1", "2", "3"), "1..3", emptyState())
+	testEval(t, NewResult("n1", "n2", "n3"), "n1..3", emptyState())
+	testEval(t, NewResult("n1", "n2", "n3"), "n1..n3", emptyState())
+	testEval(t, NewResult(), "n2..n1", emptyState())
+	testEval(t, NewResult("n9", "n10", "n11"), "n9..11", emptyState())
+	testEval(t, NewResult("n1", "n2", "n3"), "n1..n03", emptyState())
+	testEval(t, NewResult("n10", "n11"), "n10..1", emptyState())
+	testEval(t, NewResult("n1..2an3", "n1..2an4"), "n1..2an3..4", emptyState())
+	testEval(t, NewResult("n1..3"), "q(n1..3)", emptyState())
 }
 
 func BenchmarkClusters(b *testing.B) {
 	// setup fake state
 	state := NewState()
 
-	for i := 0; i < 100; i++ {
-		AddCluster(&state, fmt.Sprintf("cluster%d", i), Cluster{
-			"CLUSTER": []string{"$ALL"},
-			"ALL":     []string{"mynode"},
-		})
-	}
+	AddCluster(&state, "cluster", Cluster{
+		"CLUSTER": []string{"$ALL"},
+		"ALL":     []string{"mynode"},
+	})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		evalRange("clusters(mynode)", &state)
+	}
+}
+
+func BenchmarkHas(b *testing.B) {
+	// setup fake state
+	state := NewState()
+
+	AddCluster(&state, "cluster", Cluster{
+		"CLUSTER": []string{"mynode"},
+		"TYPE":    []string{"redis"},
+	})
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		evalRange("has(TYPE;redis)", &state)
 	}
 }
 
@@ -238,7 +261,7 @@ func testError(t *testing.T, expected string, query string) {
 	}
 }
 
-func testEval(t *testing.T, expected []string, query string, state *RangeState) {
+func testEval(t *testing.T, expected mapset.Set, query string, state *RangeState) {
 	actual, err := evalRange(query, state)
 
 	if err != nil {
