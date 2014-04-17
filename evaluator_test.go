@@ -174,6 +174,14 @@ func TestInvalidLex(t *testing.T) {
 	testError(t, "No closing / for match", "/")
 }
 
+func TestClusters(t *testing.T) {
+	testEval(t, []string{"a", "b"}, "clusters(one)", multiCluster(map[string]Cluster{
+		"a": Cluster{"CLUSTER": []string{"two", "one"}},
+    "b": Cluster{"CLUSTER": []string{"$ALL"}, "ALL": []string{"one"}},
+		"c": Cluster{"CLUSTER": []string{"three"}},
+	}))
+}
+
 func testError(t *testing.T, expected string, query string) {
 	_, err := evalRange(query, emptyState())
 

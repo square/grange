@@ -216,6 +216,37 @@ func (n FunctionNode) visit(state *RangeState, context *evalContext) []string {
 		}
 
 		return result
+	case "clusters":
+		set := map[string]bool{}
+		lookingFor := map[string]bool{}
+
+		// TODO: Error handling
+		nodes := n.params[0].(EvalNode).visit(state, context)
+		for _, node := range nodes {
+			lookingFor[node] = true
+		}
+
+		for clusterName, cluster := range state.clusters {
+			for _, value := range cluster["CLUSTER"] {
+				// TODO: Handle errors?
+				expansion, _ := evalRangeWithContext(value, state, &evalContext{
+					currentClusterName: clusterName,
+				})
+
+				for _, expandedValue := range expansion {
+					if lookingFor[expandedValue] {
+						set[clusterName] = true
+						goto superbreak // awww yeah
+					}
+				}
+			}
+		superbreak:
+		}
+		result := []string{}
+		for x, _ := range set {
+			result = append(result, x)
+		}
+		return result
 	}
 	return []string{}
 }
