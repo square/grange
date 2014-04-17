@@ -23,6 +23,10 @@ type TextNode struct {
 	val string
 }
 
+type ConstantNode struct {
+	val string
+}
+
 type RegexNode struct {
 	val string
 }
@@ -71,6 +75,10 @@ func (n FunctionNode) String() string {
 }
 
 func (n TextNode) String() string {
+	return n.val
+}
+
+func (n ConstantNode) String() string {
 	return n.val
 }
 

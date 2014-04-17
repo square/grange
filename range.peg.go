@@ -771,7 +771,7 @@ func (p *RangeQuery) Execute() {
 		case RuleAction14:
 			p.AddValue(buffer[begin:end])
 		case RuleAction15:
-			p.AddValue(buffer[begin:end])
+			p.AddConstant(buffer[begin:end])
 
 		}
 	}
@@ -1820,7 +1820,7 @@ func (p *RangeQuery) Init() {
 			}
 			return true
 		},
-		/* 37 Action15 <- <{ p.AddValue(buffer[begin:end]) }> */
+		/* 37 Action15 <- <{ p.AddConstant(buffer[begin:end]) }> */
 		func() bool {
 			{
 				add(RuleAction15, position)

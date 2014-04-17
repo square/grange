@@ -43,4 +43,4 @@ regex   <- '/' < (!'/' .)* > '/' { p.AddRegex(buffer[begin:end]) }
 literal <- <[[a-z0-9-_]]+>
 value   <- <[[a-z0-9-_.]]+> { p.AddValue(buffer[begin:end]) }
 space   <- ' '*
-q       <- 'q(' <(!')' .)*> ')' { p.AddValue(buffer[begin:end]) }
+q       <- 'q(' <(!')' .)*> ')' { p.AddConstant(buffer[begin:end]) }

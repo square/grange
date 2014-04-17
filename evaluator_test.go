@@ -195,6 +195,21 @@ func TestQueryGroups(t *testing.T) {
 	}))
 }
 
+func TestNumericRange(t *testing.T) {
+	testEval(t, []string{"n01", "n02", "n03"}, "n01..n03", emptyState())
+	testEval(t, []string{"n01", "n02", "n03"}, "n01..n3", emptyState())
+
+	testEval(t, []string{"1", "2", "3"}, "1..3", emptyState())
+	testEval(t, []string{"n1", "n2", "n3"}, "n1..3", emptyState())
+	testEval(t, []string{"n1", "n2", "n3"}, "n1..n3", emptyState())
+	testEval(t, []string{}, "n2..n1", emptyState())
+	testEval(t, []string{"n9", "n10", "n11"}, "n9..11", emptyState())
+	testEval(t, []string{"n1", "n2", "n3"}, "n1..n03", emptyState())
+	testEval(t, []string{"n10", "n11"}, "n10..1", emptyState())
+	testEval(t, []string{"n1..2an3", "n1..2an4"}, "n1..2an3..4", emptyState())
+	testEval(t, []string{"n1..3"}, "q(n1..3)", emptyState())
+}
+
 func testError(t *testing.T, expected string, query string) {
 	_, err := evalRange(query, emptyState())
 

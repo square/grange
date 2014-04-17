@@ -2,6 +2,8 @@ package grange
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -194,8 +196,46 @@ func (n OperatorNode) visit(state *RangeState, context *evalContext) []string {
 	return []string{}
 }
 
-func (n TextNode) visit(state *RangeState, context *evalContext) []string {
+func (n ConstantNode) visit(state *RangeState, context *evalContext) []string {
 	return []string{n.val}
+}
+
+func (n TextNode) visit(state *RangeState, context *evalContext) []string {
+	numericRangeRegexp :=
+		regexp.MustCompile("^(.*)(\\d+)\\.\\.([^\\d]*)?(\\d+)(.*)$")
+	match := numericRangeRegexp.FindStringSubmatch(n.val)
+
+	if len(match) == 0 {
+		return []string{n.val}
+	}
+
+	// Need to massage captures to be able to compare non-digit components.
+	firstStr := match[1]
+	for {
+		if len(firstStr) == 0 {
+			break
+		}
+		char := firstStr[len(firstStr)-1:]
+		if _, err := strconv.Atoi(char); err != nil {
+			break
+		}
+		firstStr = firstStr[:len(firstStr)-1]
+	}
+
+	// a1..a4 is valid, a1..b4 is invalid
+	if len(match[3]) != 0 && firstStr != match[3] {
+		return []string{n.val}
+	}
+
+	low, _ := strconv.Atoi(match[2])
+	high, _ := strconv.Atoi(match[4])
+
+	result := []string{}
+	for x := low; x <= high; x++ {
+		result = append(result, fmt.Sprintf("%s%d%s", match[1], x, match[5]))
+	}
+
+	return result
 }
 
 func (n GroupQueryNode) visit(state *RangeState, context *evalContext) []string {

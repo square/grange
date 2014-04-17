@@ -15,6 +15,10 @@ func (r *RangeQuery) AddValue(val string) {
 	r.pushNode(TextNode{val})
 }
 
+func (r *RangeQuery) AddConstant(val string) {
+	r.pushNode(ConstantNode{val})
+}
+
 func (r *RangeQuery) AddNull() {
 	r.pushNode(NullNode{})
 }
