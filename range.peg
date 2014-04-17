@@ -13,6 +13,7 @@ rangeexpr <- space
     / subexpr
     / cluster
     / group
+    / groupq
     / localkey
     / regex
     / value
@@ -28,8 +29,14 @@ union       <- ',' rangeexpr { p.AddOperator(operatorUnion) }
 braces  <- '{' rangeexpr combinators? '}' rangeexpr? { p.AddBraces() }
 
 subexpr <- '%{' rangeexpr '}' { p.AddSubexpr() } key?
+
+groupq  <- '?' rangeexpr { p.AddGroupQuery() }
+
+# TODO: Following two probably need to look for expr, not literal. That then
+# takes care of subexpr too.
 cluster <- '%' literal { p.AddClusterLookup(buffer[begin:end]) } key?
 group   <- '@' literal { p.AddGroupLookup(buffer[begin:end]) }
+
 key     <- ':' literal { p.AddKeyLookup(buffer[begin:end]) }
 localkey <- '$' literal { p.AddLocalClusterLookup(buffer[begin:end]) }
 

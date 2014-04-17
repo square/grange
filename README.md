@@ -35,13 +35,13 @@ Supported Syntax
 * `clusters(example.com)`
 * `has(TYPE;%{clusters(a.example.com)}:TYPE)` (range expression in parameter)
 * `q(http://blah)`
+* `?example.com`
 * Expressions as values.
 * Extraneous whitespace.
 
 ### Unsupported (yet)
 
 * `a1..9.example.com`
-* `?example.com`
 * `%cluster:{KEY1,KEY2}`
 
 Development

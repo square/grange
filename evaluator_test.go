@@ -177,14 +177,22 @@ func TestInvalidLex(t *testing.T) {
 func TestClusters(t *testing.T) {
 	testEval(t, []string{"a", "b"}, "clusters(one)", multiCluster(map[string]Cluster{
 		"a": Cluster{"CLUSTER": []string{"two", "one"}},
-    "b": Cluster{"CLUSTER": []string{"$ALL"}, "ALL": []string{"one"}},
+		"b": Cluster{"CLUSTER": []string{"$ALL"}, "ALL": []string{"one"}},
 		"c": Cluster{"CLUSTER": []string{"three"}},
 	}))
 }
 
 func TestQ(t *testing.T) {
-  testEval(t, []string{"(/"}, "q((/)", emptyState())
-  testEval(t, []string{"http://foo/bar?yeah"}, "q(http://foo/bar?yeah)", emptyState())
+	testEval(t, []string{"(/"}, "q((/)", emptyState())
+	testEval(t, []string{"http://foo/bar?yeah"}, "q(http://foo/bar?yeah)", emptyState())
+}
+
+func TestQueryGroups(t *testing.T) {
+	testEval(t, []string{"one", "two"}, "?a", multiGroup(Cluster{
+		"one":   []string{"a"},
+		"two":   []string{"$one"},
+		"three": []string{"b"},
+	}))
 }
 
 func testError(t *testing.T, expected string, query string) {

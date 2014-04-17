@@ -196,6 +196,30 @@ func (n TextNode) visit(state *RangeState, context *evalContext) []string {
 	return []string{n.val}
 }
 
+func (n GroupQueryNode) visit(state *RangeState, context *evalContext) []string {
+	lookingFor := map[string]bool{}
+
+	nodes := n.node.(EvalNode).visit(state, context)
+	for _, node := range nodes {
+		lookingFor[node] = true
+	}
+
+	result := []string{}
+	for groupName, group := range state.groups {
+		for _, value := range group {
+			expanded, _ := evalRange(value, state)
+			for _, expandedValue := range expanded {
+				if lookingFor[expandedValue] {
+					result = append(result, groupName)
+					goto superbreak
+				}
+			}
+		}
+	superbreak:
+	}
+	return result
+}
+
 func (n FunctionNode) visit(state *RangeState, context *evalContext) []string {
 	switch n.name {
 	case "has":
@@ -217,7 +241,6 @@ func (n FunctionNode) visit(state *RangeState, context *evalContext) []string {
 
 		return result
 	case "clusters":
-		set := map[string]bool{}
 		lookingFor := map[string]bool{}
 
 		// TODO: Error handling
@@ -226,6 +249,7 @@ func (n FunctionNode) visit(state *RangeState, context *evalContext) []string {
 			lookingFor[node] = true
 		}
 
+		result := []string{}
 		for clusterName, cluster := range state.clusters {
 			for _, value := range cluster["CLUSTER"] {
 				// TODO: Handle errors?
@@ -235,16 +259,12 @@ func (n FunctionNode) visit(state *RangeState, context *evalContext) []string {
 
 				for _, expandedValue := range expansion {
 					if lookingFor[expandedValue] {
-						set[clusterName] = true
+						result = append(result, clusterName)
 						goto superbreak // awww yeah
 					}
 				}
 			}
 		superbreak:
-		}
-		result := []string{}
-		for x, _ := range set {
-			result = append(result, x)
 		}
 		return result
 	}
