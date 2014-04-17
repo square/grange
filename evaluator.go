@@ -58,10 +58,6 @@ func evalRangeWithContext(input string, state *RangeState, context *evalContext)
 	return node.(EvalNode).visit(state, context), nil
 }
 
-func (n ClusterLookupNode) visit(state *RangeState, _ *evalContext) []string {
-	return clusterLookup(state, n.name, n.key)
-}
-
 func (n BracesNode) visit(state *RangeState, context *evalContext) []string {
 	result := []string{}
 	left := n.left.(EvalNode).visit(state, context)

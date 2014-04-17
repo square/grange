@@ -41,10 +41,6 @@ func (r *RangeQuery) AddBraces() {
 	r.pushNode(BracesNode{node, left, right})
 }
 
-func (r *RangeQuery) AddClusterLookup(name string) {
-	r.pushNode(ClusterLookupNode{name, "CLUSTER"})
-}
-
 func (r *RangeQuery) AddGroupLookup() {
 	exprNode := r.popNode()
 	r.pushNode(GroupLookupNode{exprNode})
@@ -75,10 +71,6 @@ func (r *RangeQuery) AddRegex(val string) {
 func (r *RangeQuery) AddKeyLookup(key string) {
 	node := r.popNode()
 	switch node.(type) {
-	case ClusterLookupNode:
-		n := node.(ClusterLookupNode)
-		n.key = key
-		r.pushNode(n)
 	case SubexprNode:
 		n := node.(SubexprNode)
 		n.key = key

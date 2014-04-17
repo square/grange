@@ -27,11 +27,6 @@ type RegexNode struct {
 	val string
 }
 
-type ClusterLookupNode struct {
-	name string
-	key  string
-}
-
 type LocalClusterLookupNode struct {
 	key string
 }
@@ -64,14 +59,6 @@ type BracesNode struct {
 type FunctionNode struct {
 	name   string
 	params []Node
-}
-
-func (n ClusterLookupNode) String() string {
-	if n.key == "CLUSTER" {
-		return fmt.Sprintf("%%%s", n.name)
-	} else {
-		return fmt.Sprintf("%%%s:%s", n.name, n.key)
-	}
 }
 
 func (n FunctionNode) String() string {
