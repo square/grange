@@ -313,20 +313,15 @@ func (n FunctionNode) visit(state *RangeState, context *evalContext) error {
 
 		lookingFor := subContext.currentResult
 
-		for clusterName, cluster := range state.clusters {
-			for _, value := range cluster["CLUSTER"] {
-				// TODO: Handle errors?
-				subContext = newClusterContext(clusterName)
-				expansion, _ := evalRangeWithContext(value, state, &subContext)
+		for clusterName, _ := range state.clusters {
+			subContext = newClusterContext(clusterName)
+			clusterLookup(state, &subContext, "CLUSTER")
 
-				for expandedValue := range expansion.Iter() {
-					if lookingFor.Contains(expandedValue) {
-						context.addResult(clusterName)
-						goto superbreak // awww yeah
-					}
+			for value := range subContext.resultIter() {
+				if lookingFor.Contains(value) {
+					context.addResult(clusterName)
 				}
 			}
-		superbreak:
 		}
 	}
 	return nil
