@@ -14,6 +14,10 @@ type Cluster map[string][]string
 type RangeState struct {
 	clusters map[string]Cluster
 	groups   Cluster
+
+	// Populated lazily as groups are evaluated. They won't change unless state
+	// changes.
+	groupCache map[string]*mapset.Set
 }
 
 type evalContext struct {
@@ -35,15 +39,23 @@ func newClusterContext(clusterName string) evalContext {
 
 func SetGroups(state *RangeState, c Cluster) {
 	state.groups = c
+	state.ResetCache()
 }
 
 func AddCluster(state *RangeState, name string, c Cluster) {
 	state.clusters[name] = c
+	state.ResetCache()
+}
+
+func (state *RangeState) ResetCache() {
+	state.groupCache = map[string]*mapset.Set{}
 }
 
 func NewState() RangeState {
 	return RangeState{
-		clusters: map[string]Cluster{},
+		clusters:   map[string]Cluster{},
+		groups:     Cluster{},
+		groupCache: map[string]*mapset.Set{},
 	}
 }
 
@@ -353,12 +365,20 @@ func (state *RangeState) allValues(context *evalContext) error {
 }
 
 func groupLookup(state *RangeState, context *evalContext, key string) error {
+	if state.groupCache[key] != nil {
+		for x := range state.groupCache[key].Iter() {
+			context.addResult(x.(string))
+		}
+		return nil
+	}
+
 	clusterExp := state.groups[key]
 
 	for _, value := range clusterExp {
 		// TODO: Return errors correctly
 		evalRangeInplace(value, state, context)
 	}
+	state.groupCache[key] = &context.currentResult
 	return nil
 }
 

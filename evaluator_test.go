@@ -275,32 +275,26 @@ func testEval(t *testing.T, expected mapset.Set, query string, state *RangeState
 }
 
 func singleCluster(name string, c Cluster) *RangeState {
-	state := RangeState{
-		clusters: map[string]Cluster{},
-	}
+	state := NewState()
 	state.clusters[name] = c
 	return &state
 }
 
 func singleGroup(name string, members ...string) *RangeState {
-	state := RangeState{
-		groups: map[string][]string{},
-	}
+	state := NewState()
 	state.groups[name] = members
 	return &state
 }
 
 func multiGroup(c Cluster) *RangeState {
-	state := RangeState{
-		groups: c,
-	}
+	state := NewState()
+	state.groups = c
 	return &state
 }
 
 func multiCluster(cs map[string]Cluster) *RangeState {
-	state := RangeState{
-		clusters: cs,
-	}
+	state := NewState()
+	state.clusters = cs
 	return &state
 }
 
