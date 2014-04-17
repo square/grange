@@ -59,9 +59,9 @@ func (r *RangeQuery) AddFunction(name string) {
 	r.pushNode(FunctionNode{name, []Node{}})
 }
 
-func (r *RangeQuery) AddSubexpr() {
+func (r *RangeQuery) AddClusterLookup() {
 	exprNode := r.popNode()
-	r.pushNode(SubexprNode{exprNode, "CLUSTER"})
+	r.pushNode(ClusterLookupNode{exprNode, "CLUSTER"})
 }
 
 func (r *RangeQuery) AddRegex(val string) {
@@ -71,8 +71,8 @@ func (r *RangeQuery) AddRegex(val string) {
 func (r *RangeQuery) AddKeyLookup(key string) {
 	node := r.popNode()
 	switch node.(type) {
-	case SubexprNode:
-		n := node.(SubexprNode)
+	case ClusterLookupNode:
+		n := node.(ClusterLookupNode)
 		n.key = key
 		r.pushNode(n)
 	}

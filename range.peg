@@ -28,7 +28,7 @@ union       <- ',' rangeexpr { p.AddOperator(operatorUnion) }
 braces  <- '{' rangeexpr combinators? '}' rangeexpr? { p.AddBraces() }
 
 groupq  <- '?' rangeexpr { p.AddGroupQuery() }
-cluster <- '%' rangeexpr { p.AddSubexpr() } key?
+cluster <- '%' rangeexpr { p.AddClusterLookup() } key?
 group   <- '@' rangeexpr { p.AddGroupLookup() }
 
 # TODO: Use rangeexpr for the following?

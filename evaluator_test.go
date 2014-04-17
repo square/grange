@@ -125,21 +125,21 @@ func TestGroupsExpand(t *testing.T) {
 	}))
 }
 
-func TestSubexpr(t *testing.T) {
+func TestClusterLookup(t *testing.T) {
 	testEval(t, []string{"a"}, "%{has(TYPE;db)}", singleCluster("ignore", Cluster{
 		"CLUSTER": []string{"a"},
 		"TYPE":    []string{"db"},
 	}))
 }
 
-func TestSubexprExplicitKey(t *testing.T) {
+func TestClusterLookupExplicitKey(t *testing.T) {
 	testEval(t, []string{"a"}, "%{has(TYPE;db)}:NODES", singleCluster("ignore", Cluster{
 		"NODES": []string{"a"},
 		"TYPE":  []string{"db"},
 	}))
 }
 
-func TestSubexprDedup(t *testing.T) {
+func TestClusterLookupDedup(t *testing.T) {
 	testEval(t, []string{"one", "two"}, "%{has(TYPE;one)}:TYPE", multiCluster(map[string]Cluster{
 		"a": Cluster{"TYPE": []string{"one", "two"}},
 		"b": Cluster{"TYPE": []string{"two", "one"}},

@@ -39,7 +39,7 @@ type GroupQueryNode struct {
 	node Node
 }
 
-type SubexprNode struct {
+type ClusterLookupNode struct {
 	node Node
 	key  string
 }
@@ -78,7 +78,7 @@ func (n RegexNode) String() string {
 	return fmt.Sprintf("/%s/", n.val)
 }
 
-func (n SubexprNode) String() string {
+func (n ClusterLookupNode) String() string {
 	if n.key == "CLUSTER" {
 		return fmt.Sprintf("%%{%s}", n.node)
 	} else {

@@ -753,7 +753,7 @@ func (p *RangeQuery) Execute() {
 		case RuleAction5:
 			p.AddGroupQuery()
 		case RuleAction6:
-			p.AddSubexpr()
+			p.AddClusterLookup()
 		case RuleAction7:
 			p.AddGroupLookup()
 		case RuleAction8:
@@ -1756,7 +1756,7 @@ func (p *RangeQuery) Init() {
 			}
 			return true
 		},
-		/* 27 Action6 <- <{ p.AddSubexpr() }> */
+		/* 27 Action6 <- <{ p.AddClusterLookup() }> */
 		func() bool {
 			{
 				add(RuleAction6, position)
