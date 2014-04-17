@@ -1,6 +1,7 @@
 package grange
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -208,6 +209,22 @@ func TestNumericRange(t *testing.T) {
 	testEval(t, []string{"n10", "n11"}, "n10..1", emptyState())
 	testEval(t, []string{"n1..2an3", "n1..2an4"}, "n1..2an3..4", emptyState())
 	testEval(t, []string{"n1..3"}, "q(n1..3)", emptyState())
+}
+
+func BenchmarkClusters(b *testing.B) {
+	// setup fake state
+	state := NewState()
+
+	for i := 0; i < 100; i++ {
+		AddCluster(&state, fmt.Sprintf("cluster%d", i), Cluster{
+			"CLUSTER": []string{"$ALL"},
+			"ALL":     []string{"mynode"},
+		})
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		evalRange("clusters(mynode)", &state)
+	}
 }
 
 func testError(t *testing.T, expected string, query string) {
