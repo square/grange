@@ -299,5 +299,6 @@ func multiCluster(cs map[string]Cluster) *RangeState {
 }
 
 func emptyState() *RangeState {
-	return &RangeState{}
+	state := NewState()
+	return &state
 }

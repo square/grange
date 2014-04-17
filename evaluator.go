@@ -17,7 +17,8 @@ type RangeState struct {
 
 	// Populated lazily as groups are evaluated. They won't change unless state
 	// changes.
-	groupCache map[string]*mapset.Set
+	groupCache   map[string]*mapset.Set
+	clusterCache map[string]map[string]*mapset.Set
 }
 
 type evalContext struct {
@@ -49,14 +50,16 @@ func AddCluster(state *RangeState, name string, c Cluster) {
 
 func (state *RangeState) ResetCache() {
 	state.groupCache = map[string]*mapset.Set{}
+	state.clusterCache = map[string]map[string]*mapset.Set{}
 }
 
 func NewState() RangeState {
-	return RangeState{
-		clusters:   map[string]Cluster{},
-		groups:     Cluster{},
-		groupCache: map[string]*mapset.Set{},
+	state := RangeState{
+		clusters: map[string]Cluster{},
+		groups:   Cluster{},
 	}
+	state.ResetCache()
+	return state
 }
 
 func NewResult(args ...interface{}) mapset.Set {
@@ -378,7 +381,8 @@ func groupLookup(state *RangeState, context *evalContext, key string) error {
 }
 
 func clusterLookup(state *RangeState, context *evalContext, key string) error {
-	cluster := state.clusters[context.currentClusterName]
+	clusterName := context.currentClusterName
+	cluster := state.clusters[clusterName]
 
 	if key == "KEYS" {
 		for k, _ := range cluster {
@@ -387,14 +391,23 @@ func clusterLookup(state *RangeState, context *evalContext, key string) error {
 		return nil
 	}
 
-	clusterExp := cluster[key] // TODO: Error handling
-
-	subContext := newClusterContext(context.currentClusterName)
-
-	for _, value := range clusterExp {
-		evalRangeInplace(value, state, &subContext)
+	if state.clusterCache[clusterName] == nil {
+		state.clusterCache[clusterName] = map[string]*mapset.Set{}
 	}
-	for x := range subContext.currentResult.Iter() {
+
+	if state.clusterCache[clusterName][key] == nil {
+		clusterExp := cluster[key] // TODO: Error handling
+
+		subContext := newClusterContext(context.currentClusterName)
+
+		for _, value := range clusterExp {
+			evalRangeInplace(value, state, &subContext)
+		}
+
+		state.clusterCache[clusterName][key] = &subContext.currentResult
+	}
+
+	for x := range state.clusterCache[clusterName][key].Iter() {
 		context.addResult(x.(string))
 	}
 	return nil
