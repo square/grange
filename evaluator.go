@@ -173,9 +173,9 @@ func (n OperatorNode) visit(state *RangeState, context *evalContext) error {
 		rightContext.workingResult = &leftContext.currentResult
 		n.right.(EvalNode).visit(state, &rightContext) // TODO: Error handle
 
-		// TODO: Would this ever throw away results? Can it be done inplace?
-		context.currentResult = leftContext.currentResult.Intersect(rightContext.currentResult)
-
+		for x := range leftContext.currentResult.Intersect(rightContext.currentResult).Iter() {
+			context.addResult(x.(string))
+		}
 	case operatorSubtract:
 		leftContext := context.sub()
 		n.left.(EvalNode).visit(state, &leftContext) // TODO: Error handle
@@ -190,8 +190,9 @@ func (n OperatorNode) visit(state *RangeState, context *evalContext) error {
 		rightContext.workingResult = &leftContext.currentResult
 		n.right.(EvalNode).visit(state, &rightContext) // TODO: Error handle
 
-		// TODO: Would this ever throw away results? Can it be done inplace?
-		context.currentResult = leftContext.currentResult.Difference(rightContext.currentResult)
+		for x := range leftContext.currentResult.Difference(rightContext.currentResult).Iter() {
+			context.addResult(x.(string))
+		}
 	case operatorUnion:
 		// TODO: Handle errors
 		n.left.(EvalNode).visit(state, context)
