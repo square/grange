@@ -21,6 +21,14 @@ type RangeState struct {
 	clusterCache map[string]map[string]*mapset.Set
 }
 
+func (state *RangeState) PrimeCache() {
+	// traverse and expand every cluster, adding them to cache.
+	EvalRange("clusters(a)", state)
+
+	// traverse and expand every group
+	EvalRange("//", state)
+}
+
 type evalContext struct {
 	currentClusterName string
 	currentResult      mapset.Set
