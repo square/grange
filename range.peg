@@ -16,7 +16,7 @@ rangeexpr <- space
     / localkey
     / regex
     / value
-    / { p.AddNull() } braces # Maybe a better way to match this?
+    / { p.AddBraceStart() } braces
     / null)
 
 combinators <- space (union / intersect / exclude / braces)

@@ -741,7 +741,7 @@ func (p *RangeQuery) Execute() {
 		case RulePegText:
 			begin, end = int(token.begin), int(token.end)
 		case RuleAction0:
-			p.AddNull()
+			p.AddBraceStart()
 		case RuleAction1:
 			p.AddOperator(operatorIntersect)
 		case RuleAction2:
@@ -1734,7 +1734,7 @@ func (p *RangeQuery) Init() {
 			position, tokenIndex, depth = position109, tokenIndex109, depth109
 			return false
 		},
-		/* 20 Action0 <- <{ p.AddNull() }> */
+		/* 20 Action0 <- <{ p.AddBraceStart() }> */
 		func() bool {
 			{
 				add(RuleAction0, position)

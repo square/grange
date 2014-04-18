@@ -23,6 +23,10 @@ func (r *RangeQuery) AddNull() {
 	r.pushNode(NullNode{})
 }
 
+func (r *RangeQuery) AddBraceStart() {
+	r.pushNode(BraceStartNode{})
+}
+
 func (r *RangeQuery) AddFuncArg() {
 	var funcNode Node
 
@@ -36,11 +40,22 @@ func (r *RangeQuery) AddFuncArg() {
 func (r *RangeQuery) AddBraces() {
 	right := r.popNode()
 	node := r.popNode()
+
 	var left Node
-	if len(r.nodeStack) == 0 {
-		left = NullNode{}
-	} else {
-		left = r.popNode()
+	left = NullNode{}
+
+	// This is kind of bullshit but not sure a better way to do it yet
+	switch node.(type) {
+	case BraceStartNode:
+		node = NullNode{}
+	default:
+		if len(r.nodeStack) > 0 {
+			left = r.popNode()
+			switch left.(type) {
+			case BraceStartNode:
+				left = NullNode{}
+			}
+		}
 	}
 	r.pushNode(BracesNode{node, left, right})
 }

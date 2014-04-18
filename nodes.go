@@ -19,6 +19,10 @@ type Node interface {
 
 type NullNode struct{}
 
+// Transient marker node to delineate the start of a braces capture. This is
+// kind of weird. This node should never be present one parsing is complete.
+type BraceStartNode struct{}
+
 type TextNode struct {
 	val string
 }
@@ -114,6 +118,10 @@ func (n NullNode) String() string {
 	return ""
 }
 
+func (n BraceStartNode) String() string {
+	return ""
+}
+
 func (n OperatorNode) String() string {
 	var op string
 
@@ -126,4 +134,17 @@ func (n OperatorNode) String() string {
 		op = ","
 	}
 	return fmt.Sprintf("%s %s %s", n.left, op, n.right)
+}
+
+func (t operatorType) String() string {
+	switch t {
+	case operatorIntersect:
+		return "&"
+	case operatorSubtract:
+		return "-"
+	case operatorUnion:
+		return ","
+	default:
+		panic("Unknown operatorType")
+	}
 }
