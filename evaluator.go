@@ -22,6 +22,12 @@ type RangeState struct {
 	clusterCache map[string]map[string]*mapset.Set
 }
 
+var (
+	// Maximum number of runes that grange will try to parse in a query. Queries
+	// longer than this will be rejected. This is an anti-DOS measure.
+	MaxQuerySize = 1000
+)
+
 func (state *RangeState) PrimeCache() {
 	// traverse and expand every cluster, adding them to cache.
 	EvalRange("clusters(a)", state)
@@ -86,6 +92,9 @@ func parseRange(input string) (Node, error) {
 }
 
 func EvalRange(input string, state *RangeState) (result mapset.Set, err error) {
+	if len(input) > MaxQuerySize {
+		return mapset.NewSet(), errors.New(fmt.Sprintf("Query is too long, maximum length is %d", MaxQuerySize))
+	}
 	return evalRange(input, state)
 }
 

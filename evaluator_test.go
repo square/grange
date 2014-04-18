@@ -1,8 +1,10 @@
 package grange
 
 import (
+	"fmt"
 	"github.com/deckarep/golang-set"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -241,6 +243,12 @@ func TestNumericRange(t *testing.T) {
 	testEval(t, NewResult("n1an3..4", "n2an3..4"), "n1..2an3..4", emptyState())
 }
 
+func TestLengthError(t *testing.T) {
+	longString := strings.Repeat("a", MaxQuerySize)
+	testEval(t, NewResult(longString), longString, emptyState())
+	testError2(t, fmt.Sprintf("Query is too long, maximum length is %d", MaxQuerySize), longString+"a", emptyState())
+}
+
 func BenchmarkClusters(b *testing.B) {
 	// setup fake state
 	state := NewState()
@@ -277,6 +285,16 @@ func testError(t *testing.T, expected string, query string) {
 	} else if err.Error() != expected {
 		// TODO: Get error messages back
 		//t.Errorf("Different error returned.\n got: %s\nwant: %s", err.Error(), expected)
+	}
+}
+
+func testError2(t *testing.T, expected string, query string, state *RangeState) {
+	_, err := EvalRange(query, state)
+
+	if err == nil {
+		t.Errorf("Expected error but none returned")
+	} else if err.Error() != expected {
+		t.Errorf("Different error returned.\n got: %s\nwant: %s", err.Error(), expected)
 	}
 }
 
