@@ -259,6 +259,14 @@ func TestMaxResults(t *testing.T) {
 	testEval(t, NewResult(result...), "1..10000000", emptyState())
 }
 
+func TestMaxText(t *testing.T) {
+	longString := strings.Repeat("a", MaxQuerySize+1)
+	testError2(t, "Value would exceed maximum query size: aaaaaaaaaaaaaaaaaaaa...", "%a",
+		singleCluster("a", Cluster{
+			"CLUSTER": []string{longString},
+		}))
+}
+
 func BenchmarkClusters(b *testing.B) {
 	// setup fake state
 	state := NewState()

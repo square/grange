@@ -24,7 +24,8 @@ type RangeState struct {
 
 var (
 	// Maximum number of runes that grange will try to parse in a query. Queries
-	// longer than this will be rejected. This is an anti-DOS measure.
+	// longer than this will be rejected. This limit also applies to cluster and
+	// group names and values. This is an anti-DOS measure.
 	MaxQuerySize = 1000
 
 	// The maximum number of results a query can return. Execution will be
@@ -108,10 +109,10 @@ func evalRange(input string, state *RangeState) (result mapset.Set, err error) {
 	return evalRangeWithContext(input, state, &context)
 }
 
-func evalRangeWithContext(input string, state *RangeState, context *evalContext) (result mapset.Set, err error) {
-	parseError := evalRangeInplace(input, state, context)
+func evalRangeWithContext(input string, state *RangeState, context *evalContext) (mapset.Set, error) {
+	err := evalRangeInplace(input, state, context)
 
-	return context.currentResult, parseError
+	return context.currentResult, err
 }
 
 // Useful internally so that results do not need to be copied all over the place
@@ -121,8 +122,9 @@ func evalRangeInplace(input string, state *RangeState, context *evalContext) err
 		return errors.New("Could not parse query")
 	}
 
-	node.(EvalNode).visit(state, context)
-	return nil
+	evalErr := node.(EvalNode).visit(state, context)
+
+	return evalErr
 }
 
 func (c evalContext) hasResults() bool {
@@ -170,16 +172,27 @@ func (n LocalClusterLookupNode) visit(state *RangeState, context *evalContext) e
 }
 
 func (n ClusterLookupNode) visit(state *RangeState, context *evalContext) error {
+	var evalErr error
+
 	subContext := newContext()
-	n.node.(EvalNode).visit(state, &subContext)
+	evalErr = n.node.(EvalNode).visit(state, &subContext)
+	if evalErr != nil {
+		return evalErr
+	}
 
 	keyContext := newContext()
-	n.key.(EvalNode).visit(state, &keyContext)
+	evalErr = n.key.(EvalNode).visit(state, &keyContext)
+	if evalErr != nil {
+		return evalErr
+	}
 
 	for clusterName := range subContext.resultIter() {
 		context.currentClusterName = clusterName.(string)
 		for key := range keyContext.resultIter() {
-			clusterLookup(state, context, key.(string))
+			evalErr = clusterLookup(state, context, key.(string))
+			if evalErr != nil {
+				return evalErr
+			}
 		}
 	}
 
@@ -263,7 +276,10 @@ func (n TextNode) visit(state *RangeState, context *evalContext) error {
 	match := numericRangeRegexp.FindStringSubmatch(n.val)
 
 	if len(match) == 0 {
-		context.currentResult.Add(n.val)
+		if len(n.val) > MaxQuerySize {
+			return errors.New(fmt.Sprintf("Value would exceed maximum query size: %s...", n.val[0:20]))
+		}
+		context.addResult(n.val)
 		return nil
 	}
 
@@ -428,12 +444,13 @@ func groupLookup(state *RangeState, context *evalContext, key string) error {
 }
 
 func clusterLookup(state *RangeState, context *evalContext, key string) error {
+	var evalErr error
 	clusterName := context.currentClusterName
 	cluster := state.clusters[clusterName]
 
 	if key == "KEYS" {
 		for k, _ := range cluster {
-			context.currentResult.Add(k)
+			context.currentResult.Add(k) // TODO: addResult
 		}
 		return nil
 	}
@@ -448,7 +465,10 @@ func clusterLookup(state *RangeState, context *evalContext, key string) error {
 		subContext := newClusterContext(context.currentClusterName)
 
 		for _, value := range clusterExp {
-			evalRangeInplace(value, state, &subContext)
+			evalErr = evalRangeInplace(value, state, &subContext)
+			if evalErr != nil {
+				return evalErr
+			}
 		}
 
 		state.clusterCache[clusterName][key] = &subContext.currentResult
