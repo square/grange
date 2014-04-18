@@ -26,6 +26,11 @@ var (
 	// Maximum number of runes that grange will try to parse in a query. Queries
 	// longer than this will be rejected. This is an anti-DOS measure.
 	MaxQuerySize = 1000
+
+	// The maximum number of results a query can return. Execution will be
+	// short-circuited once this many results have been gathered. No error will
+	// be returned.
+	MaxResults = 10000
 )
 
 func (state *RangeState) PrimeCache() {
@@ -146,7 +151,9 @@ func (n BracesNode) visit(state *RangeState, context *evalContext) error {
 	for l := range leftContext.resultIter() {
 		for m := range middleContext.resultIter() {
 			for r := range rightContext.resultIter() {
-				context.addResult(fmt.Sprintf("%s%s%s", l, m, r))
+				if !context.addResult(fmt.Sprintf("%s%s%s", l, m, r)) {
+					return nil
+				}
 			}
 		}
 	}
@@ -212,7 +219,9 @@ func (n OperatorNode) visit(state *RangeState, context *evalContext) error {
 		n.right.(EvalNode).visit(state, &rightContext) // TODO: Error handle
 
 		for x := range leftContext.currentResult.Intersect(rightContext.currentResult).Iter() {
-			context.addResult(x.(string))
+			if !context.addResult(x.(string)) {
+				return nil
+			}
 		}
 	case operatorSubtract:
 		leftContext := context.sub()
@@ -229,7 +238,9 @@ func (n OperatorNode) visit(state *RangeState, context *evalContext) error {
 		n.right.(EvalNode).visit(state, &rightContext) // TODO: Error handle
 
 		for x := range leftContext.currentResult.Difference(rightContext.currentResult).Iter() {
-			context.addResult(x.(string))
+			if !context.addResult(x.(string)) {
+				return nil
+			}
 		}
 	case operatorUnion:
 		// TODO: Handle errors
@@ -274,8 +285,9 @@ func (n TextNode) visit(state *RangeState, context *evalContext) error {
 
 	// a1..a4 is valid, a1..b4 is invalid
 	if len(rightStr) != 0 && leftStrToMatch != rightStr {
-		context.currentResult.Add(n.val)
-		return nil
+		if !context.addResult(n.val) {
+			return nil
+		}
 	}
 
 	width := strconv.Itoa(len(leftN))
@@ -283,7 +295,9 @@ func (n TextNode) visit(state *RangeState, context *evalContext) error {
 	high, _ := strconv.Atoi(rightN)
 
 	for x := low; x <= high; x++ {
-		context.currentResult.Add(fmt.Sprintf("%s%0"+width+"d%s", leftStr, x, trailing))
+		if !context.addResult(fmt.Sprintf("%s%0"+width+"d%s", leftStr, x, trailing)) {
+			return nil
+		}
 	}
 
 	return nil
@@ -304,7 +318,9 @@ func (n GroupQueryNode) visit(state *RangeState, context *evalContext) error {
 
 		for x := range lookingFor {
 			if groupContext.currentResult.Contains(x) {
-				context.addResult(groupName)
+				if !context.addResult(groupName) {
+					return nil
+				}
 				break
 			}
 		}
@@ -328,7 +344,9 @@ func (n FunctionNode) visit(state *RangeState, context *evalContext) error {
 			for _, value := range cluster[key] {
 				// TODO: Need to eval value?
 				if value == toMatch {
-					context.addResult(clusterName)
+					if !context.addResult(clusterName) {
+						return nil
+					}
 				}
 			}
 		}
@@ -345,7 +363,9 @@ func (n FunctionNode) visit(state *RangeState, context *evalContext) error {
 
 			for value := range subContext.resultIter() {
 				if lookingFor.Contains(value) {
-					context.addResult(clusterName)
+					if !context.addResult(clusterName) {
+						return nil
+					}
 				}
 			}
 		}
@@ -362,7 +382,9 @@ func (n RegexNode) visit(state *RangeState, context *evalContext) error {
 
 	for x := range context.workingResult.Iter() {
 		if strings.Contains(x.(string), n.val) {
-			context.addResult(x.(string))
+			if !context.addResult(x.(string)) {
+				return nil
+			}
 		}
 	}
 
@@ -388,7 +410,9 @@ func (state *RangeState) allValues(context *evalContext) error {
 func groupLookup(state *RangeState, context *evalContext, key string) error {
 	if state.groupCache[key] != nil {
 		for x := range state.groupCache[key].Iter() {
-			context.addResult(x.(string))
+			if !context.addResult(x.(string)) {
+				return nil
+			}
 		}
 		return nil
 	}
@@ -431,13 +455,20 @@ func clusterLookup(state *RangeState, context *evalContext, key string) error {
 	}
 
 	for x := range state.clusterCache[clusterName][key].Iter() {
-		context.addResult(x.(string))
+		if !context.addResult(x.(string)) {
+			return nil
+		}
 	}
 	return nil
 }
 
-func (c *evalContext) addResult(value string) {
+func (c *evalContext) addResult(value string) bool {
+	if c.currentResult.Cardinality() >= MaxResults {
+		return false
+	}
+
 	c.currentResult.Add(value)
+	return true
 }
 
 func (c *evalContext) resultIter() <-chan interface{} {

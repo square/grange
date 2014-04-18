@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/deckarep/golang-set"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -247,6 +248,15 @@ func TestLengthError(t *testing.T) {
 	longString := strings.Repeat("a", MaxQuerySize)
 	testEval(t, NewResult(longString), longString, emptyState())
 	testError2(t, fmt.Sprintf("Query is too long, maximum length is %d", MaxQuerySize), longString+"a", emptyState())
+}
+
+func TestMaxResults(t *testing.T) {
+	result := make([]interface{}, MaxResults)
+	for i := 1; i <= MaxResults; i++ {
+		result[i-1] = strconv.Itoa(i)
+	}
+
+	testEval(t, NewResult(result...), "1..10000000", emptyState())
 }
 
 func BenchmarkClusters(b *testing.B) {
