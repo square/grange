@@ -1,6 +1,7 @@
 package grange
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -103,7 +104,7 @@ func evalRangeWithContext(input string, state *RangeState, context *evalContext)
 func evalRangeInplace(input string, state *RangeState, context *evalContext) error {
 	node, parseError := parseRange(input)
 	if parseError != nil {
-		return parseError
+		return errors.New("Could not parse query")
 	}
 
 	node.(EvalNode).visit(state, context)
