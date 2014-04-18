@@ -20,9 +20,9 @@ rangeexpr <- space
     / null)
 
 combinators <- space (union / intersect / exclude / braces)
-intersect   <- '&' rangeexpr { p.AddOperator(operatorIntersect) }
-exclude     <- '-' rangeexpr { p.AddOperator(operatorSubtract) }
-union       <- ',' rangeexpr { p.AddOperator(operatorUnion) }
+intersect   <- '&' rangeexpr  { p.AddOperator(operatorIntersect) } combinators?
+exclude     <- '-' rangeexpr  { p.AddOperator(operatorSubtract) } combinators?
+union       <- ',' rangeexpr  { p.AddOperator(operatorUnion) } combinators?
 
 # See https://github.com/pointlander/peg/issues/21 for context
 braces  <- '{' rangeexpr combinators? '}' rangeexpr? { p.AddBraces() }

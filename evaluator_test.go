@@ -177,6 +177,11 @@ func TestMatchWithSubtract(t *testing.T) {
 		}))
 }
 
+func TestUnionSubtractLeftAssociative(t *testing.T) {
+	testEval(t, NewResult("a", "b-a"), "a,b-a", emptyState())
+	testEval(t, NewResult("b"), "a , b - a", emptyState())
+}
+
 func TestInvalidLex(t *testing.T) {
 	testError(t, "No closing / for match", "/")
 }
