@@ -45,7 +45,7 @@ type GroupQueryNode struct {
 
 type ClusterLookupNode struct {
 	node Node
-	key  string
+	key  Node
 }
 
 type OperatorNode struct {
@@ -87,11 +87,13 @@ func (n RegexNode) String() string {
 }
 
 func (n ClusterLookupNode) String() string {
-	if n.key == "CLUSTER" {
-		return fmt.Sprintf("%%{%s}", n.node)
-	} else {
-		return fmt.Sprintf("%%{%s}:%s", n.node, n.key)
-	}
+  switch n.key.(type) {
+  case TextNode:
+    if n.key.(TextNode).val == "CLUSTER" {
+      return fmt.Sprintf("%%{%s}", n.node)
+    }
+  }
+  return fmt.Sprintf("%%{%s}:%s", n.node, n.key)
 }
 
 func (n GroupLookupNode) String() string {
@@ -107,7 +109,7 @@ func (n LocalClusterLookupNode) String() string {
 }
 
 func (n BracesNode) String() string {
-	return fmt.Sprintf("%s{%s}%s", n.node, n.left, n.right)
+	return fmt.Sprintf("|%s|{%s}|%s|", n.node, n.left, n.right)
 }
 
 func (n NullNode) String() string {
@@ -125,5 +127,5 @@ func (n OperatorNode) String() string {
 	case operatorUnion:
 		op = ","
 	}
-	return fmt.Sprintf("%s %s %s", n.left, op, n.right)
+	return fmt.Sprintf("(%s %s %s)", n.left, op, n.right)
 }

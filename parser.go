@@ -1,4 +1,5 @@
 package grange
+import "fmt"
 
 func (r *RangeQuery) popNode() Node {
 	l := len(r.nodeStack)
@@ -34,7 +35,9 @@ func (r *RangeQuery) AddFuncArg() {
 }
 
 func (r *RangeQuery) AddBraces() {
+  fmt.Printf("Adding braces: %s\n", r.nodeStack)
 	right := r.popNode()
+  fmt.Printf("Adding braces: %s\n", r.nodeStack)
 	node := r.popNode()
 	var left Node
 	if len(r.nodeStack) == 0 {
@@ -64,21 +67,27 @@ func (r *RangeQuery) AddFunction(name string) {
 }
 
 func (r *RangeQuery) AddClusterLookup() {
+  fmt.Printf("%d: %s\n", len(r.nodeStack), r.nodeStack)
 	exprNode := r.popNode()
-	r.pushNode(ClusterLookupNode{exprNode, "CLUSTER"})
+	r.pushNode(ClusterLookupNode{exprNode, TextNode{"CLUSTER"}})
 }
 
 func (r *RangeQuery) AddRegex(val string) {
 	r.pushNode(RegexNode{val})
 }
 
-func (r *RangeQuery) AddKeyLookup(key string) {
-	node := r.popNode()
+func (r *RangeQuery) AddKeyLookup() {
+  fmt.Printf("%s\n", r.nodeStack)
+	exprNode := r.popNode()
+  fmt.Printf("%s\n", r.nodeStack)
+  node := r.popNode()
 	switch node.(type) {
 	case ClusterLookupNode:
 		n := node.(ClusterLookupNode)
-		n.key = key
+		n.key = exprNode
 		r.pushNode(n)
+  default:
+    // TODO: FAIL?
 	}
 }
 

@@ -24,6 +24,14 @@ func TestClusterKeys(t *testing.T) {
 	}))
 }
 
+func TestClusterKeysExpr(t *testing.T) {
+	testEval(t, NewResult("b", "c", "d"), "%a:{NODES,TYPE}",
+    singleCluster("a", Cluster{
+      "NODES": []string{"b", "c"},
+      "TYPE": []string{"d"},
+    }))
+}
+
 func TestClusterMissing(t *testing.T) {
 	testEval(t, NewResult(), "%a", emptyState())
 }
@@ -85,7 +93,11 @@ func TestUnionEasy(t *testing.T) {
 	testEval(t, NewResult("a", "b"), "a,b", emptyState())
 }
 
+func TestBracesEasy(t *testing.T) {
+}
+
 func TestBracesWithUnion(t *testing.T) {
+	testEval(t, NewResult("a", "b"), "{a,b}", emptyState())
 	testEval(t, NewResult("a.c", "b.c"), "{a,b}.c", emptyState())
 	testEval(t, NewResult("a.b", "a.c"), "a.{b,c}", emptyState())
 	testEval(t, NewResult("a.b.d", "a.c.d"), "a.{b,c}.d", emptyState())

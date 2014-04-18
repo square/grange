@@ -147,10 +147,14 @@ func (n LocalClusterLookupNode) visit(state *RangeState, context *evalContext) e
 func (n ClusterLookupNode) visit(state *RangeState, context *evalContext) error {
 	subContext := newContext()
 	n.node.(EvalNode).visit(state, &subContext)
+  keyContext := newContext()
+  n.key.(EvalNode).visit(state, &keyContext)
 
 	for clusterName := range subContext.resultIter() {
 		context.currentClusterName = clusterName.(string)
-		clusterLookup(state, context, n.key)
+    for key := range keyContext.resultIter() {
+      clusterLookup(state, context, key.(string))
+    }
 	}
 
 	return nil
