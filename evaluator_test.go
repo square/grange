@@ -24,6 +24,13 @@ func TestClusterKeys(t *testing.T) {
 	}))
 }
 
+func TestClusterKeysMulti(t *testing.T) {
+	testEval(t, NewResult("a", "b"), "%a:{NODES,TYPE}", singleCluster("a", Cluster{
+		"NODES": []string{"a"},
+		"TYPE":  []string{"b"},
+	}))
+}
+
 func TestClusterMissing(t *testing.T) {
 	testEval(t, NewResult(), "%a", emptyState())
 }

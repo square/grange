@@ -37,11 +37,8 @@ Supported Syntax
 * `q(http://blah)`
 * `?example.com`
 * `a1..9.example.com`
-* Expressions as values.
-
-### Unsupported (yet)
-
 * `%cluster:{KEY1,KEY2}`
+* Expressions as values.
 
 Development
 -----------

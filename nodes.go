@@ -49,7 +49,7 @@ type GroupQueryNode struct {
 
 type ClusterLookupNode struct {
 	node Node
-	key  string
+	key  Node
 }
 
 type OperatorNode struct {
@@ -91,11 +91,13 @@ func (n RegexNode) String() string {
 }
 
 func (n ClusterLookupNode) String() string {
-	if n.key == "CLUSTER" {
-		return fmt.Sprintf("%%{%s}", n.node)
-	} else {
-		return fmt.Sprintf("%%{%s}:%s", n.node, n.key)
+	switch n.key.(type) {
+	case TextNode:
+		if n.key.(TextNode).val == "CLUSTER" {
+			return fmt.Sprintf("%%{%s}", n.node)
+		}
 	}
+	return fmt.Sprintf("%%{%s}:%s", n.node, n.key)
 }
 
 func (n GroupLookupNode) String() string {

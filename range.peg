@@ -32,7 +32,7 @@ cluster <- '%' rangeexpr { p.AddClusterLookup() } key?
 group   <- '@' rangeexpr { p.AddGroupLookup() }
 
 # TODO: Use rangeexpr for the following?
-key      <- ':' literal { p.AddKeyLookup(buffer[begin:end]) }
+key      <- ':' rangeexpr { p.AddKeyLookup() }
 localkey <- '$' literal { p.AddLocalClusterLookup(buffer[begin:end]) }
 
 function <- literal { p.AddFunction(buffer[begin:end]) } '(' funcargs ')'

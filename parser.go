@@ -80,20 +80,26 @@ func (r *RangeQuery) AddFunction(name string) {
 
 func (r *RangeQuery) AddClusterLookup() {
 	exprNode := r.popNode()
-	r.pushNode(ClusterLookupNode{exprNode, "CLUSTER"})
+	r.pushNode(ClusterLookupNode{exprNode, ConstantNode{"CLUSTER"}})
 }
 
 func (r *RangeQuery) AddRegex(val string) {
 	r.pushNode(RegexNode{val})
 }
 
-func (r *RangeQuery) AddKeyLookup(key string) {
-	node := r.popNode()
-	switch node.(type) {
-	case ClusterLookupNode:
-		n := node.(ClusterLookupNode)
-		n.key = key
-		r.pushNode(n)
+func (r *RangeQuery) AddKeyLookup() {
+	keyNode := r.popNode()
+	// TODO: Error out if no lookup
+	if len(r.nodeStack) > 0 {
+		lookupNode := r.popNode()
+
+		switch lookupNode.(type) {
+		case ClusterLookupNode:
+			n := lookupNode.(ClusterLookupNode)
+			n.key = keyNode
+			r.pushNode(n)
+			// TODO: Error out if wrong node type
+		}
 	}
 }
 
