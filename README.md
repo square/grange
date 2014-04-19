@@ -45,6 +45,6 @@ Development
 
 This is library, so does not export a main function. Run it via tests.
 
-    go get github.com/pointlander/peg
+    go get github.com/xaviershay/peg
 
     $GOPATH/bin/peg range.peg && go test

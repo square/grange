@@ -10,54 +10,54 @@ import (
 const end_symbol rune = 4
 
 /* The rule types inferred from the grammar are below. */
-type Rule uint8
+type pegRule uint8
 
 const (
-	RuleUnknown Rule = iota
-	Ruleexpression
-	Rulerangeexpr
-	Rulecombinators
-	Ruleintersect
-	Ruleexclude
-	Ruleunion
-	Rulebraces
-	Rulegroupq
-	Rulecluster
-	Rulegroup
-	Rulekey
-	Rulelocalkey
-	Rulefunction
-	Rulefuncargs
-	Ruleregex
-	Ruleliteral
-	Rulevalue
-	Rulespace
-	Ruleq
-	RuleAction0
-	Rulenull
-	RuleAction1
-	RuleAction2
-	RuleAction3
-	RuleAction4
-	RuleAction5
-	RuleAction6
-	RuleAction7
-	RuleAction8
-	RuleAction9
-	RuleAction10
-	RuleAction11
-	RuleAction12
-	RulePegText
-	RuleAction13
-	RuleAction14
-	RuleAction15
+	ruleUnknown pegRule = iota
+	ruleexpression
+	rulerangeexpr
+	rulecombinators
+	ruleintersect
+	ruleexclude
+	ruleunion
+	rulebraces
+	rulegroupq
+	rulecluster
+	rulegroup
+	rulekey
+	rulelocalkey
+	rulefunction
+	rulefuncargs
+	ruleregex
+	ruleliteral
+	rulevalue
+	rulespace
+	ruleq
+	ruleAction0
+	rulenull
+	ruleAction1
+	ruleAction2
+	ruleAction3
+	ruleAction4
+	ruleAction5
+	ruleAction6
+	ruleAction7
+	ruleAction8
+	ruleAction9
+	ruleAction10
+	ruleAction11
+	ruleAction12
+	rulePegText
+	ruleAction13
+	ruleAction14
+	ruleAction15
 
-	RulePre_
-	Rule_In_
-	Rule_Suf
+	rulePre_
+	rule_In_
+	rule_Suf
 )
 
-var Rul3s = [...]string{
+var rul3s = [...]string{
 	"Unknown",
 	"expression",
 	"rangeexpr",
@@ -106,25 +106,25 @@ type tokenTree interface {
 	Print()
 	PrintSyntax()
 	PrintSyntaxTree(buffer string)
-	Add(rule Rule, begin, end, next, depth int)
+	Add(rule pegRule, begin, end, next, depth int)
 	Expand(index int) tokenTree
 	Tokens() <-chan token32
-	AST() *Node32
+	AST() *node32
 	Error() []token32
 	trim(length int)
 }
 
-type Node32 struct {
+type node32 struct {
 	token32
-	up, next *Node32
+	up, next *node32
 }
 
-func (node *Node32) print(depth int, buffer string) {
+func (node *node32) print(depth int, buffer string) {
 	for node != nil {
 		for c := 0; c < depth; c++ {
 			fmt.Printf(" ")
 		}
-		fmt.Printf("\x1B[34m%v\x1B[m %v\n", Rul3s[node.Rule], strconv.Quote(buffer[node.begin:node.end]))
+		fmt.Printf("\x1B[34m%v\x1B[m %v\n", rul3s[node.pegRule], strconv.Quote(buffer[node.begin:node.end]))
 		if node.up != nil {
 			node.up.print(depth+1, buffer)
 		}
@@ -132,35 +132,35 @@ func (node *Node32) print(depth int, buffer string) {
 	}
 }
 
-func (ast *Node32) Print(buffer string) {
+func (ast *node32) Print(buffer string) {
 	ast.print(0, buffer)
 }
 
 type element struct {
-	node *Node32
+	node *node32
 	down *element
 }
 
 /* ${@} bit structure for abstract syntax tree */
 type token16 struct {
-	Rule
+	pegRule
 	begin, end, next int16
 }
 
 func (t *token16) isZero() bool {
-	return t.Rule == RuleUnknown && t.begin == 0 && t.end == 0 && t.next == 0
+	return t.pegRule == ruleUnknown && t.begin == 0 && t.end == 0 && t.next == 0
 }
 
 func (t *token16) isParentOf(u token16) bool {
 	return t.begin <= u.begin && t.end >= u.end && t.next > u.next
 }
 
-func (t *token16) GetToken32() token32 {
-	return token32{Rule: t.Rule, begin: int32(t.begin), end: int32(t.end), next: int32(t.next)}
+func (t *token16) getToken32() token32 {
+	return token32{pegRule: t.pegRule, begin: int32(t.begin), end: int32(t.end), next: int32(t.next)}
 }
 
 func (t *token16) String() string {
-	return fmt.Sprintf("\x1B[34m%v\x1B[m %v %v %v", Rul3s[t.Rule], t.begin, t.end, t.next)
+	return fmt.Sprintf("\x1B[34m%v\x1B[m %v %v %v", rul3s[t.pegRule], t.begin, t.end, t.next)
 }
 
 type tokens16 struct {
@@ -185,7 +185,7 @@ func (t *tokens16) Order() [][]token16 {
 
 	depths := make([]int16, 1, math.MaxInt16)
 	for i, token := range t.tree {
-		if token.Rule == RuleUnknown {
+		if token.pegRule == ruleUnknown {
 			t.tree = t.tree[:i]
 			break
 		}
@@ -213,20 +213,20 @@ func (t *tokens16) Order() [][]token16 {
 	return ordered
 }
 
-type State16 struct {
+type state16 struct {
 	token16
 	depths []int16
 	leaf   bool
 }
 
-func (t *tokens16) AST() *Node32 {
+func (t *tokens16) AST() *node32 {
 	tokens := t.Tokens()
-	stack := &element{node: &Node32{token32: <-tokens}}
+	stack := &element{node: &node32{token32: <-tokens}}
 	for token := range tokens {
 		if token.begin == token.end {
 			continue
 		}
-		node := &Node32{token32: token}
+		node := &node32{token32: token}
 		for stack != nil && stack.node.begin >= token.begin && stack.node.end <= token.end {
 			stack.node.next = node.up
 			node.up = stack.node
@@ -237,17 +237,17 @@ func (t *tokens16) AST() *Node32 {
 	return stack.node
 }
 
-func (t *tokens16) PreOrder() (<-chan State16, [][]token16) {
-	s, ordered := make(chan State16, 6), t.Order()
+func (t *tokens16) PreOrder() (<-chan state16, [][]token16) {
+	s, ordered := make(chan state16, 6), t.Order()
 	go func() {
-		var states [8]State16
+		var states [8]state16
 		for i, _ := range states {
 			states[i].depths = make([]int16, len(ordered))
 		}
 		depths, state, depth := make([]int16, len(ordered)), 0, 1
 		write := func(t token16, leaf bool) {
 			S := states[state]
-			state, S.Rule, S.begin, S.end, S.next, S.leaf = (state+1)%8, t.Rule, t.begin, t.end, int16(depth), leaf
+			state, S.pegRule, S.begin, S.end, S.next, S.leaf = (state+1)%8, t.pegRule, t.begin, t.end, int16(depth), leaf
 			copy(S.depths, depths)
 			s <- S
 		}
@@ -263,20 +263,20 @@ func (t *tokens16) PreOrder() (<-chan State16, [][]token16) {
 					if c, j := ordered[depth][i-1], depths[depth-1]; a.isParentOf(c) &&
 						(j < 2 || !ordered[depth-1][j-2].isParentOf(c)) {
 						if c.end != b.begin {
-							write(token16{Rule: Rule_In_, begin: c.end, end: b.begin}, true)
+							write(token16{pegRule: rule_In_, begin: c.end, end: b.begin}, true)
 						}
 						break
 					}
 				}
 
 				if a.begin < b.begin {
-					write(token16{Rule: RulePre_, begin: a.begin, end: b.begin}, true)
+					write(token16{pegRule: rulePre_, begin: a.begin, end: b.begin}, true)
 				}
 				break
 			}
 
 			next := depth + 1
-			if c := ordered[next][depths[next]]; c.Rule != RuleUnknown && b.isParentOf(c) {
+			if c := ordered[next][depths[next]]; c.pegRule != ruleUnknown && b.isParentOf(c) {
 				write(b, false)
 				depths[depth]++
 				depth, a, b = next, b, c
@@ -287,11 +287,11 @@ func (t *tokens16) PreOrder() (<-chan State16, [][]token16) {
 			depths[depth]++
 			c, parent := ordered[depth][depths[depth]], true
 			for {
-				if c.Rule != RuleUnknown && a.isParentOf(c) {
+				if c.pegRule != ruleUnknown && a.isParentOf(c) {
 					b = c
 					continue depthFirstSearch
 				} else if parent && b.end != a.end {
-					write(token16{Rule: Rule_Suf, begin: b.end, end: a.end}, true)
+					write(token16{pegRule: rule_Suf, begin: b.end, end: a.end}, true)
 				}
 
 				depth--
@@ -317,15 +317,15 @@ func (t *tokens16) PrintSyntax() {
 		if !token.leaf {
 			fmt.Printf("%v", token.begin)
 			for i, leaf, depths := 0, int(token.next), token.depths; i < leaf; i++ {
-				fmt.Printf(" \x1B[36m%v\x1B[m", Rul3s[ordered[i][depths[i]-1].Rule])
+				fmt.Printf(" \x1B[36m%v\x1B[m", rul3s[ordered[i][depths[i]-1].pegRule])
 			}
-			fmt.Printf(" \x1B[36m%v\x1B[m\n", Rul3s[token.Rule])
+			fmt.Printf(" \x1B[36m%v\x1B[m\n", rul3s[token.pegRule])
 		} else if token.begin == token.end {
 			fmt.Printf("%v", token.begin)
 			for i, leaf, depths := 0, int(token.next), token.depths; i < leaf; i++ {
-				fmt.Printf(" \x1B[31m%v\x1B[m", Rul3s[ordered[i][depths[i]-1].Rule])
+				fmt.Printf(" \x1B[31m%v\x1B[m", rul3s[ordered[i][depths[i]-1].pegRule])
 			}
-			fmt.Printf(" \x1B[31m%v\x1B[m\n", Rul3s[token.Rule])
+			fmt.Printf(" \x1B[31m%v\x1B[m\n", rul3s[token.pegRule])
 		} else {
 			for c, end := token.begin, token.end; c < end; c++ {
 				if i := int(c); max+1 < i {
@@ -342,9 +342,9 @@ func (t *tokens16) PrintSyntax() {
 				}
 				fmt.Printf("%v", c)
 				for i, leaf, depths := 0, int(token.next), token.depths; i < leaf; i++ {
-					fmt.Printf(" \x1B[34m%v\x1B[m", Rul3s[ordered[i][depths[i]-1].Rule])
+					fmt.Printf(" \x1B[34m%v\x1B[m", rul3s[ordered[i][depths[i]-1].pegRule])
 				}
-				fmt.Printf(" \x1B[34m%v\x1B[m\n", Rul3s[token.Rule])
+				fmt.Printf(" \x1B[34m%v\x1B[m\n", rul3s[token.pegRule])
 			}
 			fmt.Printf("\n")
 		}
@@ -357,19 +357,19 @@ func (t *tokens16) PrintSyntaxTree(buffer string) {
 		for c := 0; c < int(token.next); c++ {
 			fmt.Printf(" ")
 		}
-		fmt.Printf("\x1B[34m%v\x1B[m %v\n", Rul3s[token.Rule], strconv.Quote(buffer[token.begin:token.end]))
+		fmt.Printf("\x1B[34m%v\x1B[m %v\n", rul3s[token.pegRule], strconv.Quote(buffer[token.begin:token.end]))
 	}
 }
 
-func (t *tokens16) Add(rule Rule, begin, end, depth, index int) {
-	t.tree[index] = token16{Rule: rule, begin: int16(begin), end: int16(end), next: int16(depth)}
+func (t *tokens16) Add(rule pegRule, begin, end, depth, index int) {
+	t.tree[index] = token16{pegRule: rule, begin: int16(begin), end: int16(end), next: int16(depth)}
 }
 
 func (t *tokens16) Tokens() <-chan token32 {
 	s := make(chan token32, 16)
 	go func() {
 		for _, v := range t.tree {
-			s <- v.GetToken32()
+			s <- v.getToken32()
 		}
 		close(s)
 	}()
@@ -383,7 +383,7 @@ func (t *tokens16) Error() []token32 {
 	for i, _ := range tokens {
 		o := ordered[length-i]
 		if len(o) > 1 {
-			tokens[i] = o[len(o)-2].GetToken32()
+			tokens[i] = o[len(o)-2].getToken32()
 		}
 	}
 	return tokens
@@ -391,24 +391,24 @@ func (t *tokens16) Error() []token32 {
 
 /* ${@} bit structure for abstract syntax tree */
 type token32 struct {
-	Rule
+	pegRule
 	begin, end, next int32
 }
 
 func (t *token32) isZero() bool {
-	return t.Rule == RuleUnknown && t.begin == 0 && t.end == 0 && t.next == 0
+	return t.pegRule == ruleUnknown && t.begin == 0 && t.end == 0 && t.next == 0
 }
 
 func (t *token32) isParentOf(u token32) bool {
 	return t.begin <= u.begin && t.end >= u.end && t.next > u.next
 }
 
-func (t *token32) GetToken32() token32 {
-	return token32{Rule: t.Rule, begin: int32(t.begin), end: int32(t.end), next: int32(t.next)}
+func (t *token32) getToken32() token32 {
+	return token32{pegRule: t.pegRule, begin: int32(t.begin), end: int32(t.end), next: int32(t.next)}
 }
 
 func (t *token32) String() string {
-	return fmt.Sprintf("\x1B[34m%v\x1B[m %v %v %v", Rul3s[t.Rule], t.begin, t.end, t.next)
+	return fmt.Sprintf("\x1B[34m%v\x1B[m %v %v %v", rul3s[t.pegRule], t.begin, t.end, t.next)
 }
 
 type tokens32 struct {
@@ -433,7 +433,7 @@ func (t *tokens32) Order() [][]token32 {
 
 	depths := make([]int32, 1, math.MaxInt16)
 	for i, token := range t.tree {
-		if token.Rule == RuleUnknown {
+		if token.pegRule == ruleUnknown {
 			t.tree = t.tree[:i]
 			break
 		}
@@ -461,20 +461,20 @@ func (t *tokens32) Order() [][]token32 {
 	return ordered
 }
 
-type State32 struct {
+type state32 struct {
 	token32
 	depths []int32
 	leaf   bool
 }
 
-func (t *tokens32) AST() *Node32 {
+func (t *tokens32) AST() *node32 {
 	tokens := t.Tokens()
-	stack := &element{node: &Node32{token32: <-tokens}}
+	stack := &element{node: &node32{token32: <-tokens}}
 	for token := range tokens {
 		if token.begin == token.end {
 			continue
 		}
-		node := &Node32{token32: token}
+		node := &node32{token32: token}
 		for stack != nil && stack.node.begin >= token.begin && stack.node.end <= token.end {
 			stack.node.next = node.up
 			node.up = stack.node
@@ -485,17 +485,17 @@ func (t *tokens32) AST() *Node32 {
 	return stack.node
 }
 
-func (t *tokens32) PreOrder() (<-chan State32, [][]token32) {
-	s, ordered := make(chan State32, 6), t.Order()
+func (t *tokens32) PreOrder() (<-chan state32, [][]token32) {
+	s, ordered := make(chan state32, 6), t.Order()
 	go func() {
-		var states [8]State32
+		var states [8]state32
 		for i, _ := range states {
 			states[i].depths = make([]int32, len(ordered))
 		}
 		depths, state, depth := make([]int32, len(ordered)), 0, 1
 		write := func(t token32, leaf bool) {
 			S := states[state]
-			state, S.Rule, S.begin, S.end, S.next, S.leaf = (state+1)%8, t.Rule, t.begin, t.end, int32(depth), leaf
+			state, S.pegRule, S.begin, S.end, S.next, S.leaf = (state+1)%8, t.pegRule, t.begin, t.end, int32(depth), leaf
 			copy(S.depths, depths)
 			s <- S
 		}
@@ -511,20 +511,20 @@ func (t *tokens32) PreOrder() (<-chan State32, [][]token32) {
 					if c, j := ordered[depth][i-1], depths[depth-1]; a.isParentOf(c) &&
 						(j < 2 || !ordered[depth-1][j-2].isParentOf(c)) {
 						if c.end != b.begin {
-							write(token32{Rule: Rule_In_, begin: c.end, end: b.begin}, true)
+							write(token32{pegRule: rule_In_, begin: c.end, end: b.begin}, true)
 						}
 						break
 					}
 				}
 
 				if a.begin < b.begin {
-					write(token32{Rule: RulePre_, begin: a.begin, end: b.begin}, true)
+					write(token32{pegRule: rulePre_, begin: a.begin, end: b.begin}, true)
 				}
 				break
 			}
 
 			next := depth + 1
-			if c := ordered[next][depths[next]]; c.Rule != RuleUnknown && b.isParentOf(c) {
+			if c := ordered[next][depths[next]]; c.pegRule != ruleUnknown && b.isParentOf(c) {
 				write(b, false)
 				depths[depth]++
 				depth, a, b = next, b, c
@@ -535,11 +535,11 @@ func (t *tokens32) PreOrder() (<-chan State32, [][]token32) {
 			depths[depth]++
 			c, parent := ordered[depth][depths[depth]], true
 			for {
-				if c.Rule != RuleUnknown && a.isParentOf(c) {
+				if c.pegRule != ruleUnknown && a.isParentOf(c) {
 					b = c
 					continue depthFirstSearch
 				} else if parent && b.end != a.end {
-					write(token32{Rule: Rule_Suf, begin: b.end, end: a.end}, true)
+					write(token32{pegRule: rule_Suf, begin: b.end, end: a.end}, true)
 				}
 
 				depth--
@@ -565,15 +565,15 @@ func (t *tokens32) PrintSyntax() {
 		if !token.leaf {
 			fmt.Printf("%v", token.begin)
 			for i, leaf, depths := 0, int(token.next), token.depths; i < leaf; i++ {
-				fmt.Printf(" \x1B[36m%v\x1B[m", Rul3s[ordered[i][depths[i]-1].Rule])
+				fmt.Printf(" \x1B[36m%v\x1B[m", rul3s[ordered[i][depths[i]-1].pegRule])
 			}
-			fmt.Printf(" \x1B[36m%v\x1B[m\n", Rul3s[token.Rule])
+			fmt.Printf(" \x1B[36m%v\x1B[m\n", rul3s[token.pegRule])
 		} else if token.begin == token.end {
 			fmt.Printf("%v", token.begin)
 			for i, leaf, depths := 0, int(token.next), token.depths; i < leaf; i++ {
-				fmt.Printf(" \x1B[31m%v\x1B[m", Rul3s[ordered[i][depths[i]-1].Rule])
+				fmt.Printf(" \x1B[31m%v\x1B[m", rul3s[ordered[i][depths[i]-1].pegRule])
 			}
-			fmt.Printf(" \x1B[31m%v\x1B[m\n", Rul3s[token.Rule])
+			fmt.Printf(" \x1B[31m%v\x1B[m\n", rul3s[token.pegRule])
 		} else {
 			for c, end := token.begin, token.end; c < end; c++ {
 				if i := int(c); max+1 < i {
@@ -590,9 +590,9 @@ func (t *tokens32) PrintSyntax() {
 				}
 				fmt.Printf("%v", c)
 				for i, leaf, depths := 0, int(token.next), token.depths; i < leaf; i++ {
-					fmt.Printf(" \x1B[34m%v\x1B[m", Rul3s[ordered[i][depths[i]-1].Rule])
+					fmt.Printf(" \x1B[34m%v\x1B[m", rul3s[ordered[i][depths[i]-1].pegRule])
 				}
-				fmt.Printf(" \x1B[34m%v\x1B[m\n", Rul3s[token.Rule])
+				fmt.Printf(" \x1B[34m%v\x1B[m\n", rul3s[token.pegRule])
 			}
 			fmt.Printf("\n")
 		}
@@ -605,19 +605,19 @@ func (t *tokens32) PrintSyntaxTree(buffer string) {
 		for c := 0; c < int(token.next); c++ {
 			fmt.Printf(" ")
 		}
-		fmt.Printf("\x1B[34m%v\x1B[m %v\n", Rul3s[token.Rule], strconv.Quote(buffer[token.begin:token.end]))
+		fmt.Printf("\x1B[34m%v\x1B[m %v\n", rul3s[token.pegRule], strconv.Quote(buffer[token.begin:token.end]))
 	}
 }
 
-func (t *tokens32) Add(rule Rule, begin, end, depth, index int) {
-	t.tree[index] = token32{Rule: rule, begin: int32(begin), end: int32(end), next: int32(depth)}
+func (t *tokens32) Add(rule pegRule, begin, end, depth, index int) {
+	t.tree[index] = token32{pegRule: rule, begin: int32(begin), end: int32(end), next: int32(depth)}
 }
 
 func (t *tokens32) Tokens() <-chan token32 {
 	s := make(chan token32, 16)
 	go func() {
 		for _, v := range t.tree {
-			s <- v.GetToken32()
+			s <- v.getToken32()
 		}
 		close(s)
 	}()
@@ -631,7 +631,7 @@ func (t *tokens32) Error() []token32 {
 	for i, _ := range tokens {
 		o := ordered[length-i]
 		if len(o) > 1 {
-			tokens[i] = o[len(o)-2].GetToken32()
+			tokens[i] = o[len(o)-2].getToken32()
 		}
 	}
 	return tokens
@@ -642,7 +642,7 @@ func (t *tokens16) Expand(index int) tokenTree {
 	if index >= len(tree) {
 		expanded := make([]token32, 2*len(tree))
 		for i, v := range tree {
-			expanded[i] = v.GetToken32()
+			expanded[i] = v.getToken32()
 		}
 		return &tokens32{tree: expanded}
 	}
@@ -717,7 +717,7 @@ func (e *parseError) Error() string {
 	for _, token := range tokens {
 		begin, end := int(token.begin), int(token.end)
 		error += fmt.Sprintf("parse error near \x1B[34m%v\x1B[m (line %v symbol %v - line %v symbol %v):\n%v\n",
-			Rul3s[token.Rule],
+			rul3s[token.pegRule],
 			translations[begin].line, translations[begin].symbol,
 			translations[end].line, translations[end].symbol,
 			/*strconv.Quote(*/ e.p.Buffer[begin:end] /*)*/)
@@ -737,40 +737,40 @@ func (p *rangeQuery) Highlighter() {
 func (p *rangeQuery) Execute() {
 	buffer, begin, end := p.Buffer, 0, 0
 	for token := range p.tokenTree.Tokens() {
-		switch token.Rule {
-		case RulePegText:
+		switch token.pegRule {
+		case rulePegText:
 			begin, end = int(token.begin), int(token.end)
-		case RuleAction0:
+		case ruleAction0:
 			p.addBraceStart()
-		case RuleAction1:
+		case ruleAction1:
 			p.addOperator(operatorIntersect)
-		case RuleAction2:
+		case ruleAction2:
 			p.addOperator(operatorSubtract)
-		case RuleAction3:
+		case ruleAction3:
 			p.addOperator(operatorUnion)
-		case RuleAction4:
+		case ruleAction4:
 			p.addBraces()
-		case RuleAction5:
+		case ruleAction5:
 			p.addGroupQuery()
-		case RuleAction6:
+		case ruleAction6:
 			p.addClusterLookup()
-		case RuleAction7:
+		case ruleAction7:
 			p.addGroupLookup()
-		case RuleAction8:
+		case ruleAction8:
 			p.addKeyLookup()
-		case RuleAction9:
+		case ruleAction9:
 			p.addLocalClusterLookup(buffer[begin:end])
-		case RuleAction10:
+		case ruleAction10:
 			p.addFunction(buffer[begin:end])
-		case RuleAction11:
+		case ruleAction11:
 			p.addFuncArg()
-		case RuleAction12:
+		case ruleAction12:
 			p.addFuncArg()
-		case RuleAction13:
+		case ruleAction13:
 			p.addRegex(buffer[begin:end])
-		case RuleAction14:
+		case ruleAction14:
 			p.addValue(buffer[begin:end])
-		case RuleAction15:
+		case ruleAction15:
 			p.addConstant(buffer[begin:end])
 
 		}
@@ -804,7 +804,7 @@ func (p *rangeQuery) Init() {
 		position, tokenIndex, depth = 0, 0, 0
 	}
 
-	add := func(rule Rule, begin int) {
+	add := func(rule pegRule, begin int) {
 		if t := tree.Expand(tokenIndex); t != nil {
 			tree = t
 		}
@@ -844,12 +844,12 @@ func (p *rangeQuery) Init() {
 			{
 				position1 := position
 				depth++
-				if !rules[Rulerangeexpr]() {
+				if !rules[rulerangeexpr]() {
 					goto l0
 				}
 				{
 					position2, tokenIndex2, depth2 := position, tokenIndex, depth
-					if !rules[Rulecombinators]() {
+					if !rules[rulecombinators]() {
 						goto l2
 					}
 					goto l3
@@ -867,7 +867,7 @@ func (p *rangeQuery) Init() {
 					position, tokenIndex, depth = position4, tokenIndex4, depth4
 				}
 				depth--
-				add(Ruleexpression, position1)
+				add(ruleexpression, position1)
 			}
 			return true
 		l0:
@@ -880,75 +880,75 @@ func (p *rangeQuery) Init() {
 			{
 				position6 := position
 				depth++
-				if !rules[Rulespace]() {
+				if !rules[rulespace]() {
 					goto l5
 				}
 				{
 					position7, tokenIndex7, depth7 := position, tokenIndex, depth
-					if !rules[Ruleq]() {
+					if !rules[ruleq]() {
 						goto l8
 					}
 					goto l7
 				l8:
 					position, tokenIndex, depth = position7, tokenIndex7, depth7
-					if !rules[Rulefunction]() {
+					if !rules[rulefunction]() {
 						goto l9
 					}
 					goto l7
 				l9:
 					position, tokenIndex, depth = position7, tokenIndex7, depth7
-					if !rules[Rulecluster]() {
+					if !rules[rulecluster]() {
 						goto l10
 					}
 					goto l7
 				l10:
 					position, tokenIndex, depth = position7, tokenIndex7, depth7
-					if !rules[Rulegroup]() {
+					if !rules[rulegroup]() {
 						goto l11
 					}
 					goto l7
 				l11:
 					position, tokenIndex, depth = position7, tokenIndex7, depth7
-					if !rules[Rulegroupq]() {
+					if !rules[rulegroupq]() {
 						goto l12
 					}
 					goto l7
 				l12:
 					position, tokenIndex, depth = position7, tokenIndex7, depth7
-					if !rules[Rulelocalkey]() {
+					if !rules[rulelocalkey]() {
 						goto l13
 					}
 					goto l7
 				l13:
 					position, tokenIndex, depth = position7, tokenIndex7, depth7
-					if !rules[Ruleregex]() {
+					if !rules[ruleregex]() {
 						goto l14
 					}
 					goto l7
 				l14:
 					position, tokenIndex, depth = position7, tokenIndex7, depth7
-					if !rules[Rulevalue]() {
+					if !rules[rulevalue]() {
 						goto l15
 					}
 					goto l7
 				l15:
 					position, tokenIndex, depth = position7, tokenIndex7, depth7
-					if !rules[RuleAction0]() {
+					if !rules[ruleAction0]() {
 						goto l16
 					}
-					if !rules[Rulebraces]() {
+					if !rules[rulebraces]() {
 						goto l16
 					}
 					goto l7
 				l16:
 					position, tokenIndex, depth = position7, tokenIndex7, depth7
-					if !rules[Rulenull]() {
+					if !rules[rulenull]() {
 						goto l5
 					}
 				}
 			l7:
 				depth--
-				add(Rulerangeexpr, position6)
+				add(rulerangeexpr, position6)
 			}
 			return true
 		l5:
@@ -961,36 +961,36 @@ func (p *rangeQuery) Init() {
 			{
 				position18 := position
 				depth++
-				if !rules[Rulespace]() {
+				if !rules[rulespace]() {
 					goto l17
 				}
 				{
 					position19, tokenIndex19, depth19 := position, tokenIndex, depth
-					if !rules[Ruleunion]() {
+					if !rules[ruleunion]() {
 						goto l20
 					}
 					goto l19
 				l20:
 					position, tokenIndex, depth = position19, tokenIndex19, depth19
-					if !rules[Ruleintersect]() {
+					if !rules[ruleintersect]() {
 						goto l21
 					}
 					goto l19
 				l21:
 					position, tokenIndex, depth = position19, tokenIndex19, depth19
-					if !rules[Ruleexclude]() {
+					if !rules[ruleexclude]() {
 						goto l22
 					}
 					goto l19
 				l22:
 					position, tokenIndex, depth = position19, tokenIndex19, depth19
-					if !rules[Rulebraces]() {
+					if !rules[rulebraces]() {
 						goto l17
 					}
 				}
 			l19:
 				depth--
-				add(Rulecombinators, position18)
+				add(rulecombinators, position18)
 			}
 			return true
 		l17:
@@ -1007,15 +1007,15 @@ func (p *rangeQuery) Init() {
 					goto l23
 				}
 				position++
-				if !rules[Rulerangeexpr]() {
+				if !rules[rulerangeexpr]() {
 					goto l23
 				}
-				if !rules[RuleAction1]() {
+				if !rules[ruleAction1]() {
 					goto l23
 				}
 				{
 					position25, tokenIndex25, depth25 := position, tokenIndex, depth
-					if !rules[Rulecombinators]() {
+					if !rules[rulecombinators]() {
 						goto l25
 					}
 					goto l26
@@ -1024,7 +1024,7 @@ func (p *rangeQuery) Init() {
 				}
 			l26:
 				depth--
-				add(Ruleintersect, position24)
+				add(ruleintersect, position24)
 			}
 			return true
 		l23:
@@ -1041,15 +1041,15 @@ func (p *rangeQuery) Init() {
 					goto l27
 				}
 				position++
-				if !rules[Rulerangeexpr]() {
+				if !rules[rulerangeexpr]() {
 					goto l27
 				}
-				if !rules[RuleAction2]() {
+				if !rules[ruleAction2]() {
 					goto l27
 				}
 				{
 					position29, tokenIndex29, depth29 := position, tokenIndex, depth
-					if !rules[Rulecombinators]() {
+					if !rules[rulecombinators]() {
 						goto l29
 					}
 					goto l30
@@ -1058,7 +1058,7 @@ func (p *rangeQuery) Init() {
 				}
 			l30:
 				depth--
-				add(Ruleexclude, position28)
+				add(ruleexclude, position28)
 			}
 			return true
 		l27:
@@ -1075,15 +1075,15 @@ func (p *rangeQuery) Init() {
 					goto l31
 				}
 				position++
-				if !rules[Rulerangeexpr]() {
+				if !rules[rulerangeexpr]() {
 					goto l31
 				}
-				if !rules[RuleAction3]() {
+				if !rules[ruleAction3]() {
 					goto l31
 				}
 				{
 					position33, tokenIndex33, depth33 := position, tokenIndex, depth
-					if !rules[Rulecombinators]() {
+					if !rules[rulecombinators]() {
 						goto l33
 					}
 					goto l34
@@ -1092,7 +1092,7 @@ func (p *rangeQuery) Init() {
 				}
 			l34:
 				depth--
-				add(Ruleunion, position32)
+				add(ruleunion, position32)
 			}
 			return true
 		l31:
@@ -1109,12 +1109,12 @@ func (p *rangeQuery) Init() {
 					goto l35
 				}
 				position++
-				if !rules[Rulerangeexpr]() {
+				if !rules[rulerangeexpr]() {
 					goto l35
 				}
 				{
 					position37, tokenIndex37, depth37 := position, tokenIndex, depth
-					if !rules[Rulecombinators]() {
+					if !rules[rulecombinators]() {
 						goto l37
 					}
 					goto l38
@@ -1128,7 +1128,7 @@ func (p *rangeQuery) Init() {
 				position++
 				{
 					position39, tokenIndex39, depth39 := position, tokenIndex, depth
-					if !rules[Rulerangeexpr]() {
+					if !rules[rulerangeexpr]() {
 						goto l39
 					}
 					goto l40
@@ -1136,11 +1136,11 @@ func (p *rangeQuery) Init() {
 					position, tokenIndex, depth = position39, tokenIndex39, depth39
 				}
 			l40:
-				if !rules[RuleAction4]() {
+				if !rules[ruleAction4]() {
 					goto l35
 				}
 				depth--
-				add(Rulebraces, position36)
+				add(rulebraces, position36)
 			}
 			return true
 		l35:
@@ -1157,14 +1157,14 @@ func (p *rangeQuery) Init() {
 					goto l41
 				}
 				position++
-				if !rules[Rulerangeexpr]() {
+				if !rules[rulerangeexpr]() {
 					goto l41
 				}
-				if !rules[RuleAction5]() {
+				if !rules[ruleAction5]() {
 					goto l41
 				}
 				depth--
-				add(Rulegroupq, position42)
+				add(rulegroupq, position42)
 			}
 			return true
 		l41:
@@ -1181,15 +1181,15 @@ func (p *rangeQuery) Init() {
 					goto l43
 				}
 				position++
-				if !rules[Rulerangeexpr]() {
+				if !rules[rulerangeexpr]() {
 					goto l43
 				}
-				if !rules[RuleAction6]() {
+				if !rules[ruleAction6]() {
 					goto l43
 				}
 				{
 					position45, tokenIndex45, depth45 := position, tokenIndex, depth
-					if !rules[Rulekey]() {
+					if !rules[rulekey]() {
 						goto l45
 					}
 					goto l46
@@ -1198,7 +1198,7 @@ func (p *rangeQuery) Init() {
 				}
 			l46:
 				depth--
-				add(Rulecluster, position44)
+				add(rulecluster, position44)
 			}
 			return true
 		l43:
@@ -1215,14 +1215,14 @@ func (p *rangeQuery) Init() {
 					goto l47
 				}
 				position++
-				if !rules[Rulerangeexpr]() {
+				if !rules[rulerangeexpr]() {
 					goto l47
 				}
-				if !rules[RuleAction7]() {
+				if !rules[ruleAction7]() {
 					goto l47
 				}
 				depth--
-				add(Rulegroup, position48)
+				add(rulegroup, position48)
 			}
 			return true
 		l47:
@@ -1239,14 +1239,14 @@ func (p *rangeQuery) Init() {
 					goto l49
 				}
 				position++
-				if !rules[Rulerangeexpr]() {
+				if !rules[rulerangeexpr]() {
 					goto l49
 				}
-				if !rules[RuleAction8]() {
+				if !rules[ruleAction8]() {
 					goto l49
 				}
 				depth--
-				add(Rulekey, position50)
+				add(rulekey, position50)
 			}
 			return true
 		l49:
@@ -1263,14 +1263,14 @@ func (p *rangeQuery) Init() {
 					goto l51
 				}
 				position++
-				if !rules[Ruleliteral]() {
+				if !rules[ruleliteral]() {
 					goto l51
 				}
-				if !rules[RuleAction9]() {
+				if !rules[ruleAction9]() {
 					goto l51
 				}
 				depth--
-				add(Rulelocalkey, position52)
+				add(rulelocalkey, position52)
 			}
 			return true
 		l51:
@@ -1283,17 +1283,17 @@ func (p *rangeQuery) Init() {
 			{
 				position54 := position
 				depth++
-				if !rules[Ruleliteral]() {
+				if !rules[ruleliteral]() {
 					goto l53
 				}
-				if !rules[RuleAction10]() {
+				if !rules[ruleAction10]() {
 					goto l53
 				}
 				if buffer[position] != rune('(') {
 					goto l53
 				}
 				position++
-				if !rules[Rulefuncargs]() {
+				if !rules[rulefuncargs]() {
 					goto l53
 				}
 				if buffer[position] != rune(')') {
@@ -1301,7 +1301,7 @@ func (p *rangeQuery) Init() {
 				}
 				position++
 				depth--
-				add(Rulefunction, position54)
+				add(rulefunction, position54)
 			}
 			return true
 		l53:
@@ -1316,32 +1316,32 @@ func (p *rangeQuery) Init() {
 				depth++
 				{
 					position57, tokenIndex57, depth57 := position, tokenIndex, depth
-					if !rules[Rulerangeexpr]() {
+					if !rules[rulerangeexpr]() {
 						goto l58
 					}
-					if !rules[RuleAction11]() {
+					if !rules[ruleAction11]() {
 						goto l58
 					}
 					if buffer[position] != rune(';') {
 						goto l58
 					}
 					position++
-					if !rules[Rulefuncargs]() {
+					if !rules[rulefuncargs]() {
 						goto l58
 					}
 					goto l57
 				l58:
 					position, tokenIndex, depth = position57, tokenIndex57, depth57
-					if !rules[Rulerangeexpr]() {
+					if !rules[rulerangeexpr]() {
 						goto l55
 					}
-					if !rules[RuleAction12]() {
+					if !rules[ruleAction12]() {
 						goto l55
 					}
 				}
 			l57:
 				depth--
-				add(Rulefuncargs, position56)
+				add(rulefuncargs, position56)
 			}
 			return true
 		l55:
@@ -1382,17 +1382,17 @@ func (p *rangeQuery) Init() {
 						position, tokenIndex, depth = position63, tokenIndex63, depth63
 					}
 					depth--
-					add(RulePegText, position61)
+					add(rulePegText, position61)
 				}
 				if buffer[position] != rune('/') {
 					goto l59
 				}
 				position++
-				if !rules[RuleAction13]() {
+				if !rules[ruleAction13]() {
 					goto l59
 				}
 				depth--
-				add(Ruleregex, position60)
+				add(ruleregex, position60)
 			}
 			return true
 		l59:
@@ -1510,10 +1510,10 @@ func (p *rangeQuery) Init() {
 						position, tokenIndex, depth = position69, tokenIndex69, depth69
 					}
 					depth--
-					add(RulePegText, position67)
+					add(rulePegText, position67)
 				}
 				depth--
-				add(Ruleliteral, position66)
+				add(ruleliteral, position66)
 			}
 			return true
 		l65:
@@ -1645,13 +1645,13 @@ func (p *rangeQuery) Init() {
 						position, tokenIndex, depth = position88, tokenIndex88, depth88
 					}
 					depth--
-					add(RulePegText, position86)
+					add(rulePegText, position86)
 				}
-				if !rules[RuleAction14]() {
+				if !rules[ruleAction14]() {
 					goto l84
 				}
 				depth--
-				add(Rulevalue, position85)
+				add(rulevalue, position85)
 			}
 			return true
 		l84:
@@ -1675,7 +1675,7 @@ func (p *rangeQuery) Init() {
 					position, tokenIndex, depth = position108, tokenIndex108, depth108
 				}
 				depth--
-				add(Rulespace, position106)
+				add(rulespace, position106)
 			}
 			return true
 		},
@@ -1717,17 +1717,17 @@ func (p *rangeQuery) Init() {
 						position, tokenIndex, depth = position113, tokenIndex113, depth113
 					}
 					depth--
-					add(RulePegText, position111)
+					add(rulePegText, position111)
 				}
 				if buffer[position] != rune(')') {
 					goto l109
 				}
 				position++
-				if !rules[RuleAction15]() {
+				if !rules[ruleAction15]() {
 					goto l109
 				}
 				depth--
-				add(Ruleq, position110)
+				add(ruleq, position110)
 			}
 			return true
 		l109:
@@ -1737,7 +1737,7 @@ func (p *rangeQuery) Init() {
 		/* 20 Action0 <- <{ p.addBraceStart() }> */
 		func() bool {
 			{
-				add(RuleAction0, position)
+				add(ruleAction0, position)
 			}
 			return true
 		},
@@ -1747,91 +1747,91 @@ func (p *rangeQuery) Init() {
 				position118 := position
 				depth++
 				depth--
-				add(Rulenull, position118)
+				add(rulenull, position118)
 			}
 			return true
 		},
 		/* 22 Action1 <- <{ p.addOperator(operatorIntersect) }> */
 		func() bool {
 			{
-				add(RuleAction1, position)
+				add(ruleAction1, position)
 			}
 			return true
 		},
 		/* 23 Action2 <- <{ p.addOperator(operatorSubtract) }> */
 		func() bool {
 			{
-				add(RuleAction2, position)
+				add(ruleAction2, position)
 			}
 			return true
 		},
 		/* 24 Action3 <- <{ p.addOperator(operatorUnion) }> */
 		func() bool {
 			{
-				add(RuleAction3, position)
+				add(ruleAction3, position)
 			}
 			return true
 		},
 		/* 25 Action4 <- <{ p.addBraces() }> */
 		func() bool {
 			{
-				add(RuleAction4, position)
+				add(ruleAction4, position)
 			}
 			return true
 		},
 		/* 26 Action5 <- <{ p.addGroupQuery() }> */
 		func() bool {
 			{
-				add(RuleAction5, position)
+				add(ruleAction5, position)
 			}
 			return true
 		},
 		/* 27 Action6 <- <{ p.addClusterLookup() }> */
 		func() bool {
 			{
-				add(RuleAction6, position)
+				add(ruleAction6, position)
 			}
 			return true
 		},
 		/* 28 Action7 <- <{ p.addGroupLookup() }> */
 		func() bool {
 			{
-				add(RuleAction7, position)
+				add(ruleAction7, position)
 			}
 			return true
 		},
 		/* 29 Action8 <- <{ p.addKeyLookup() }> */
 		func() bool {
 			{
-				add(RuleAction8, position)
+				add(ruleAction8, position)
 			}
 			return true
 		},
 		/* 30 Action9 <- <{ p.addLocalClusterLookup(buffer[begin:end]) }> */
 		func() bool {
 			{
-				add(RuleAction9, position)
+				add(ruleAction9, position)
 			}
 			return true
 		},
 		/* 31 Action10 <- <{ p.addFunction(buffer[begin:end]) }> */
 		func() bool {
 			{
-				add(RuleAction10, position)
+				add(ruleAction10, position)
 			}
 			return true
 		},
 		/* 32 Action11 <- <{ p.addFuncArg() }> */
 		func() bool {
 			{
-				add(RuleAction11, position)
+				add(ruleAction11, position)
 			}
 			return true
 		},
 		/* 33 Action12 <- <{ p.addFuncArg() }> */
 		func() bool {
 			{
-				add(RuleAction12, position)
+				add(ruleAction12, position)
 			}
 			return true
 		},
@@ -1839,21 +1839,21 @@ func (p *rangeQuery) Init() {
 		/* 35 Action13 <- <{ p.addRegex(buffer[begin:end]) }> */
 		func() bool {
 			{
-				add(RuleAction13, position)
+				add(ruleAction13, position)
 			}
 			return true
 		},
 		/* 36 Action14 <- <{ p.addValue(buffer[begin:end]) }> */
 		func() bool {
 			{
-				add(RuleAction14, position)
+				add(ruleAction14, position)
 			}
 			return true
 		},
 		/* 37 Action15 <- <{ p.addConstant(buffer[begin:end]) }> */
 		func() bool {
 			{
-				add(RuleAction15, position)
+				add(ruleAction15, position)
 			}
 			return true
 		},
