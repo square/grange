@@ -18,17 +18,21 @@ type State struct {
 
 	// Populated lazily as groups are evaluated. They won't change unless state
 	// changes.
-	groupCache   map[string]*mapset.Set
-	clusterCache map[string]map[string]*mapset.Set
+	groupCache   map[string]*Result
+	clusterCache map[string]map[string]*Result
 }
 
 type Cluster map[string][]string
 
+type Result struct {
+	mapset.Set
+}
+
 var (
-  // Maximum number of characters that grange will try to parse in a query.
-  // Queries longer than this will be rejected. This limit also applies to
-  // cluster and group names and values. Combined with MaxResults, this limits
-  // result sizes to approximately 1MB.
+	// Maximum number of characters that grange will try to parse in a query.
+	// Queries longer than this will be rejected. This limit also applies to
+	// cluster and group names and values. Combined with MaxResults, this limits
+	// result sizes to approximately 1MB.
 	MaxQuerySize = 1000
 
 	// The maximum number of results a query can return. Execution will be
@@ -37,7 +41,7 @@ var (
 	MaxResults = 10000
 )
 
-type tooManyResults struct {}
+type tooManyResults struct{}
 
 func (state *State) PrimeCache() {
 	// traverse and expand every cluster, adding them to cache.
@@ -51,18 +55,18 @@ func (state *State) PrimeCache() {
 
 type evalContext struct {
 	currentClusterName string
-	currentResult      mapset.Set
-	workingResult      *mapset.Set
+	currentResult      Result
+	workingResult      *Result
 }
 
 func newContext() evalContext {
-	return evalContext{currentResult: mapset.NewSet()}
+	return evalContext{currentResult: NewResult()}
 }
 
 func newClusterContext(clusterName string) evalContext {
 	return evalContext{
 		currentClusterName: clusterName,
-		currentResult:      mapset.NewSet(),
+		currentResult:      NewResult(),
 	}
 }
 
@@ -77,8 +81,8 @@ func AddCluster(state *State, name string, c Cluster) {
 }
 
 func (state *State) ResetCache() {
-	state.groupCache = map[string]*mapset.Set{}
-	state.clusterCache = map[string]map[string]*mapset.Set{}
+	state.groupCache = map[string]*Result{}
+	state.clusterCache = map[string]map[string]*Result{}
 }
 
 func NewState() State {
@@ -90,8 +94,8 @@ func NewState() State {
 	return state
 }
 
-func NewResult(args ...interface{}) mapset.Set {
-	return mapset.NewSetFromSlice(args)
+func NewResult(args ...interface{}) Result {
+	return Result{mapset.NewSetFromSlice(args)}
 }
 
 func parseRange(input string) (Node, error) {
@@ -104,20 +108,20 @@ func parseRange(input string) (Node, error) {
 	return r.nodeStack[0], nil
 }
 
-func EvalRange(input string, state *State) (result mapset.Set, err error) {
+func EvalRange(input string, state *State) (result Result, err error) {
 	if len(input) > MaxQuerySize {
-		return mapset.NewSet(),
-      errors.New(fmt.Sprintf("Query is too long, max length is %d", MaxQuerySize))
+		return NewResult(),
+			errors.New(fmt.Sprintf("Query is too long, max length is %d", MaxQuerySize))
 	}
 	return evalRange(input, state)
 }
 
-func evalRange(input string, state *State) (result mapset.Set, err error) {
+func evalRange(input string, state *State) (result Result, err error) {
 	context := newContext()
 	return evalRangeWithContext(input, state, &context)
 }
 
-func evalRangeWithContext(input string, state *State, context *evalContext) (mapset.Set, error) {
+func evalRangeWithContext(input string, state *State, context *evalContext) (Result, error) {
 	err := evalRangeInplace(input, state, context)
 
 	return context.currentResult, err
@@ -130,19 +134,19 @@ func evalRangeInplace(input string, state *State, context *evalContext) (err err
 		return errors.New("Could not parse query")
 	}
 
-  defer func() {
-    if r := recover(); r != nil {
-      switch r.(type) {
-      case tooManyResults:
-        // No error returned, we just chop off the results
-        err = nil
-      case error:
-        err = r.(error)
-      default:
-        panic(r)
-      }
-    }
-  }()
+	defer func() {
+		if r := recover(); r != nil {
+			switch r.(type) {
+			case tooManyResults:
+				// No error returned, we just chop off the results
+				err = nil
+			case error:
+				err = r.(error)
+			default:
+				panic(r)
+			}
+		}
+	}()
 
 	return node.(EvalNode).visit(state, context)
 }
@@ -249,7 +253,7 @@ func (n OperatorNode) visit(state *State, context *evalContext) error {
 		rightContext.workingResult = &leftContext.currentResult
 		n.right.(EvalNode).visit(state, &rightContext) // TODO: Error handle
 
-		for x := range leftContext.currentResult.Intersect(rightContext.currentResult).Iter() {
+		for x := range leftContext.currentResult.Intersect(rightContext.currentResult.Set).Iter() {
 			context.addResult(x.(string))
 		}
 	case operatorSubtract:
@@ -266,7 +270,7 @@ func (n OperatorNode) visit(state *State, context *evalContext) error {
 		rightContext.workingResult = &leftContext.currentResult
 		n.right.(EvalNode).visit(state, &rightContext) // TODO: Error handle
 
-		for x := range leftContext.currentResult.Difference(rightContext.currentResult).Iter() {
+		for x := range leftContext.currentResult.Difference(rightContext.currentResult.Set).Iter() {
 			context.addResult(x.(string))
 		}
 	case operatorUnion:
@@ -320,7 +324,7 @@ func (n TextNode) visit(state *State, context *evalContext) error {
 	high, _ := strconv.Atoi(rightN)
 
 	for x := low; x <= high; x++ {
-	 context.addResult(fmt.Sprintf("%s%0"+width+"d%s", leftStr, x, trailing))
+		context.addResult(fmt.Sprintf("%s%0"+width+"d%s", leftStr, x, trailing))
 	}
 
 	return nil
@@ -339,7 +343,7 @@ func (n GroupQueryNode) visit(state *State, context *evalContext) error {
 			evalRangeInplace(value, state, &groupContext)
 		}
 
-		for x := range lookingFor {
+		for x := range lookingFor.Iter() {
 			if groupContext.currentResult.Contains(x) {
 				context.addResult(groupName)
 				break
@@ -453,7 +457,7 @@ func clusterLookup(state *State, context *evalContext, key string) error {
 	}
 
 	if state.clusterCache[clusterName] == nil {
-		state.clusterCache[clusterName] = map[string]*mapset.Set{}
+		state.clusterCache[clusterName] = map[string]*Result{}
 	}
 
 	if state.clusterCache[clusterName][key] == nil {
@@ -479,13 +483,13 @@ func clusterLookup(state *State, context *evalContext, key string) error {
 
 func (c *evalContext) addResult(value string) {
 	if c.currentResult.Cardinality() >= MaxResults {
-    panic(tooManyResults{})
+		panic(tooManyResults{})
 	}
 
-  if len(value) > MaxQuerySize {
-    panic(errors.New(
-      fmt.Sprintf("Value would exceed max query size: %s...", value[0:20])))
-  }
+	if len(value) > MaxQuerySize {
+		panic(errors.New(
+			fmt.Sprintf("Value would exceed max query size: %s...", value[0:20])))
+	}
 
 	c.currentResult.Add(value)
 }

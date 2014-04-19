@@ -2,7 +2,6 @@ package grange
 
 import (
 	"fmt"
-	"github.com/deckarep/golang-set"
 	"reflect"
 	"strconv"
 	"strings"
@@ -316,7 +315,7 @@ func testError2(t *testing.T, expected string, query string, state *State) {
 	}
 }
 
-func testEval(t *testing.T, expected mapset.Set, query string, state *State) {
+func testEval(t *testing.T, expected Result, query string, state *State) {
 	actual, err := EvalRange(query, state)
 
 	if err != nil {
