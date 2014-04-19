@@ -1,33 +1,33 @@
 package grange
 
-func (r *RangeQuery) popNode() Node {
+func (r *rangeQuery) popNode() Node {
 	l := len(r.nodeStack)
 	result := r.nodeStack[l-1]
 	r.nodeStack = r.nodeStack[:l-1]
 	return result
 }
 
-func (r *RangeQuery) pushNode(node Node) {
+func (r *rangeQuery) pushNode(node Node) {
 	r.nodeStack = append(r.nodeStack, node)
 }
 
-func (r *RangeQuery) AddValue(val string) {
+func (r *rangeQuery) AddValue(val string) {
 	r.pushNode(TextNode{val})
 }
 
-func (r *RangeQuery) AddConstant(val string) {
+func (r *rangeQuery) AddConstant(val string) {
 	r.pushNode(ConstantNode{val})
 }
 
-func (r *RangeQuery) AddNull() {
+func (r *rangeQuery) AddNull() {
 	r.pushNode(NullNode{})
 }
 
-func (r *RangeQuery) AddBraceStart() {
+func (r *rangeQuery) AddBraceStart() {
 	r.pushNode(BraceStartNode{})
 }
 
-func (r *RangeQuery) AddFuncArg() {
+func (r *rangeQuery) AddFuncArg() {
 	var funcNode Node
 
 	paramNode := r.popNode()
@@ -37,7 +37,7 @@ func (r *RangeQuery) AddFuncArg() {
 	r.nodeStack[len(r.nodeStack)-1] = fn
 }
 
-func (r *RangeQuery) AddBraces() {
+func (r *rangeQuery) AddBraces() {
 	right := r.popNode()
 	node := r.popNode()
 
@@ -60,34 +60,34 @@ func (r *RangeQuery) AddBraces() {
 	r.pushNode(BracesNode{node, left, right})
 }
 
-func (r *RangeQuery) AddGroupLookup() {
+func (r *rangeQuery) AddGroupLookup() {
 	exprNode := r.popNode()
 	r.pushNode(GroupLookupNode{exprNode})
 }
 
-func (r *RangeQuery) AddGroupQuery() {
+func (r *rangeQuery) AddGroupQuery() {
 	exprNode := r.popNode()
 	r.pushNode(GroupQueryNode{exprNode})
 }
 
-func (r *RangeQuery) AddLocalClusterLookup(key string) {
+func (r *rangeQuery) AddLocalClusterLookup(key string) {
 	r.pushNode(LocalClusterLookupNode{key})
 }
 
-func (r *RangeQuery) AddFunction(name string) {
+func (r *rangeQuery) AddFunction(name string) {
 	r.pushNode(FunctionNode{name, []Node{}})
 }
 
-func (r *RangeQuery) AddClusterLookup() {
+func (r *rangeQuery) AddClusterLookup() {
 	exprNode := r.popNode()
 	r.pushNode(ClusterLookupNode{exprNode, ConstantNode{"CLUSTER"}})
 }
 
-func (r *RangeQuery) AddRegex(val string) {
+func (r *rangeQuery) AddRegex(val string) {
 	r.pushNode(RegexNode{val})
 }
 
-func (r *RangeQuery) AddKeyLookup() {
+func (r *rangeQuery) AddKeyLookup() {
 	keyNode := r.popNode()
 	// TODO: Error out if no lookup
 	if len(r.nodeStack) > 0 {
@@ -103,7 +103,7 @@ func (r *RangeQuery) AddKeyLookup() {
 	}
 }
 
-func (r *RangeQuery) AddOperator(typ operatorType) {
+func (r *rangeQuery) AddOperator(typ operatorType) {
 	right := r.popNode()
 	left := r.popNode()
 

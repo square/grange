@@ -659,7 +659,7 @@ func (t *tokens32) Expand(index int) TokenTree {
 	return nil
 }
 
-type RangeQuery struct {
+type rangeQuery struct {
 	currentLiteral string
 	nodeStack      []Node
 
@@ -703,7 +703,7 @@ search:
 }
 
 type parseError struct {
-	p *RangeQuery
+	p *rangeQuery
 }
 
 func (e *parseError) Error() string {
@@ -726,15 +726,15 @@ func (e *parseError) Error() string {
 	return error
 }
 
-func (p *RangeQuery) PrintSyntaxTree() {
+func (p *rangeQuery) PrintSyntaxTree() {
 	p.TokenTree.PrintSyntaxTree(p.Buffer)
 }
 
-func (p *RangeQuery) Highlighter() {
+func (p *rangeQuery) Highlighter() {
 	p.TokenTree.PrintSyntax()
 }
 
-func (p *RangeQuery) Execute() {
+func (p *rangeQuery) Execute() {
 	buffer, begin, end := p.Buffer, 0, 0
 	for token := range p.TokenTree.Tokens() {
 		switch token.Rule {
@@ -777,7 +777,7 @@ func (p *RangeQuery) Execute() {
 	}
 }
 
-func (p *RangeQuery) Init() {
+func (p *rangeQuery) Init() {
 	p.buffer = []rune(p.Buffer)
 	if len(p.buffer) == 0 || p.buffer[len(p.buffer)-1] != END_SYMBOL {
 		p.buffer = append(p.buffer, END_SYMBOL)

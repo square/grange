@@ -1,6 +1,6 @@
 package grange
 
-type RangeQuery Peg {
+type rangeQuery Peg {
   currentLiteral string
   nodeStack []Node
 }

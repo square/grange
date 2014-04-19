@@ -146,7 +146,7 @@ func newClusterContext(clusterName string) evalContext {
 }
 
 func parseRange(input string) (Node, error) {
-	r := &RangeQuery{Buffer: input}
+	r := &rangeQuery{Buffer: input}
 	r.Init()
 	if err := r.Parse(); err != nil {
 		return nil, err
