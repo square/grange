@@ -277,7 +277,7 @@ func BenchmarkClusters(b *testing.B) {
 	})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		evalRange("clusters(mynode)", &state)
+		EvalRange("clusters(mynode)", &state)
 	}
 }
 
@@ -291,12 +291,12 @@ func BenchmarkHas(b *testing.B) {
 	})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		evalRange("has(TYPE;redis)", &state)
+		EvalRange("has(TYPE;redis)", &state)
 	}
 }
 
 func testError(t *testing.T, expected string, query string) {
-	_, err := evalRange(query, emptyState())
+	_, err := EvalRange(query, emptyState())
 
 	if err == nil {
 		t.Errorf("Expected error but none returned")
@@ -317,12 +317,12 @@ func testError2(t *testing.T, expected string, query string, state *RangeState) 
 }
 
 func testEval(t *testing.T, expected mapset.Set, query string, state *RangeState) {
-	actual, err := evalRange(query, state)
+	actual, err := EvalRange(query, state)
 
 	if err != nil {
 		t.Errorf("Expected result, got error: %s", err)
 	} else if !reflect.DeepEqual(actual, expected) {
-		t.Errorf("evalRange\n got: %v\nwant: %v", actual, expected)
+		t.Errorf("EvalRange\n got: %v\nwant: %v", actual, expected)
 	}
 }
 
