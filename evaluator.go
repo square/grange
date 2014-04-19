@@ -10,8 +10,15 @@ import (
 	"github.com/deckarep/golang-set"
 )
 
-// --------- STATE
-
+// State holds data that queries operate over. Queries in grange are
+// deterministic, so the same query will always return the same result for a
+// given state. Clients are expected to build their own state to query from
+// their own datasource, such as a database or files on disk.
+//
+// State maintains an internal cache of expanded values to speed up queries.
+// After constructing a large state it is recommended to call PrimeCache()
+// before querying, otherwise initial queries will likely take longer than
+// later ones as the cache is built up incrementally.
 type State struct {
 	clusters map[string]Cluster
 	groups   Cluster
@@ -22,8 +29,12 @@ type State struct {
 	clusterCache map[string]map[string]*Result
 }
 
+// A Cluster is mapping of arbitrary keys to arrays of values. The only
+// required key is CLUSTER, which is the default set of values for the cluster.
 type Cluster map[string][]string
 
+// A set of values returned by a query. The size of this set is limited by
+// MaxResults.
 type Result struct {
 	mapset.Set
 }
@@ -41,17 +52,81 @@ var (
 	MaxResults = 10000
 )
 
-type tooManyResults struct{}
-
-func (state *State) PrimeCache() {
-	// traverse and expand every cluster, adding them to cache.
-	EvalRange("clusters(a)", state)
-
-	// traverse and expand every group
-	EvalRange("//", state)
+// Clusters is a getter for all clusters that have been added to the state.
+// There isn't really a good reason to use this other than for debugging
+// purposes.
+func (s State) Clusters() map[string]Cluster {
+	return s.clusters
 }
 
-// --------- CONTEXTS
+// NewState creates a new state to be passed into EvalRange. This will need to
+// be used at least once before you can query anything.
+func NewState() State {
+	state := State{
+		clusters: map[string]Cluster{},
+		groups:   Cluster{},
+	}
+	state.ResetCache()
+	return state
+}
+
+// NewResult is mostly used internally, but is handy in testing scenarios when
+// you need to compare a query result to a known value.
+func NewResult(args ...interface{}) Result {
+	return Result{mapset.NewSetFromSlice(args)}
+}
+
+// SetGroups overrides any existing groups and resets the cache.
+func SetGroups(state *State, c Cluster) {
+	state.groups = c
+	state.ResetCache()
+}
+
+// AddCluster adds a new cluster to the state and resets the cache.
+func AddCluster(state *State, name string, c Cluster) {
+	state.clusters[name] = c
+	state.ResetCache()
+}
+
+// PrimeCache traverses over the entire state to expand all values and store
+// them in the state's cache. Subsequent queries will be able to use the cache
+// immediately, rather than having to build it up incrementally.
+func (state *State) PrimeCache() {
+	// traverse and expand every cluster, adding them to cache.
+	state.Query("clusters(a)")
+
+	// traverse and expand every group
+	state.Query("//")
+}
+
+// ResetCache clears cached expansions. The public API for modifying state
+// already calls this when necessary, so you shouldn't really have a need to
+// call this.
+func (state *State) ResetCache() {
+	state.groupCache = map[string]*Result{}
+	state.clusterCache = map[string]map[string]*Result{}
+}
+
+// Query is the main interface to grange. See the main package documentation
+// for query language specification. On error, an empty result is returned
+// alongside the error. Queries that are longer than MaxQuerySize are
+// considered errors.
+//
+// The size of the returned result is capped by MaxResults.
+//
+// BUG: This method is not thread-safe, since it could write to its internal cache
+// and this is unsynchronized.
+func (state *State) Query(input string) (Result, error) {
+	if len(input) > MaxQuerySize {
+		return NewResult(),
+			errors.New(fmt.Sprintf("Query is too long, max length is %d", MaxQuerySize))
+	}
+
+	context := newContext()
+	return evalRangeWithContext(input, state, &context)
+}
+
+type tooManyResults struct{}
 
 type evalContext struct {
 	currentClusterName string
@@ -70,34 +145,6 @@ func newClusterContext(clusterName string) evalContext {
 	}
 }
 
-func SetGroups(state *State, c Cluster) {
-	state.groups = c
-	state.ResetCache()
-}
-
-func AddCluster(state *State, name string, c Cluster) {
-	state.clusters[name] = c
-	state.ResetCache()
-}
-
-func (state *State) ResetCache() {
-	state.groupCache = map[string]*Result{}
-	state.clusterCache = map[string]map[string]*Result{}
-}
-
-func NewState() State {
-	state := State{
-		clusters: map[string]Cluster{},
-		groups:   Cluster{},
-	}
-	state.ResetCache()
-	return state
-}
-
-func NewResult(args ...interface{}) Result {
-	return Result{mapset.NewSetFromSlice(args)}
-}
-
 func parseRange(input string) (Node, error) {
 	r := &RangeQuery{Buffer: input}
 	r.Init()
@@ -106,19 +153,6 @@ func parseRange(input string) (Node, error) {
 	}
 	r.Execute()
 	return r.nodeStack[0], nil
-}
-
-func EvalRange(input string, state *State) (result Result, err error) {
-	if len(input) > MaxQuerySize {
-		return NewResult(),
-			errors.New(fmt.Sprintf("Query is too long, max length is %d", MaxQuerySize))
-	}
-	return evalRange(input, state)
-}
-
-func evalRange(input string, state *State) (result Result, err error) {
-	context := newContext()
-	return evalRangeWithContext(input, state, &context)
 }
 
 func evalRangeWithContext(input string, state *State, context *evalContext) (Result, error) {
@@ -148,7 +182,7 @@ func evalRangeInplace(input string, state *State, context *evalContext) (err err
 		}
 	}()
 
-	return node.(EvalNode).visit(state, context)
+	return node.(evalNode).visit(state, context)
 }
 
 func (c evalContext) hasResults() bool {
@@ -160,9 +194,9 @@ func (n BracesNode) visit(state *State, context *evalContext) error {
 	rightContext := newContext()
 	middleContext := newContext()
 	// TODO: Handle errors
-	n.left.(EvalNode).visit(state, &leftContext)
-	n.node.(EvalNode).visit(state, &middleContext)
-	n.right.(EvalNode).visit(state, &rightContext)
+	n.left.(evalNode).visit(state, &leftContext)
+	n.node.(evalNode).visit(state, &middleContext)
+	n.right.(evalNode).visit(state, &rightContext)
 
 	if leftContext.hasResults() {
 		leftContext.addResult("")
@@ -197,13 +231,13 @@ func (n ClusterLookupNode) visit(state *State, context *evalContext) error {
 	var evalErr error
 
 	subContext := newContext()
-	evalErr = n.node.(EvalNode).visit(state, &subContext)
+	evalErr = n.node.(evalNode).visit(state, &subContext)
 	if evalErr != nil {
 		return evalErr
 	}
 
 	keyContext := newContext()
-	evalErr = n.key.(EvalNode).visit(state, &keyContext)
+	evalErr = n.key.(evalNode).visit(state, &keyContext)
 	if evalErr != nil {
 		return evalErr
 	}
@@ -223,7 +257,7 @@ func (n ClusterLookupNode) visit(state *State, context *evalContext) error {
 
 func (n GroupLookupNode) visit(state *State, context *evalContext) error {
 	subContext := context.sub()
-	n.node.(EvalNode).visit(state, &subContext) // TODO: Error handle
+	n.node.(evalNode).visit(state, &subContext) // TODO: Error handle
 
 	for key := range subContext.resultIter() {
 		groupLookup(state, context, key.(string))
@@ -241,7 +275,7 @@ func (n OperatorNode) visit(state *State, context *evalContext) error {
 	case operatorIntersect:
 
 		leftContext := context.sub()
-		n.left.(EvalNode).visit(state, &leftContext) // TODO: Error handle
+		n.left.(evalNode).visit(state, &leftContext) // TODO: Error handle
 
 		if leftContext.currentResult.Cardinality() == 0 {
 			// Optimization: no need to compute right side if left side is empty
@@ -251,14 +285,14 @@ func (n OperatorNode) visit(state *State, context *evalContext) error {
 		rightContext := context.sub()
 		// RegexNode needs to know about LHS to filter correctly
 		rightContext.workingResult = &leftContext.currentResult
-		n.right.(EvalNode).visit(state, &rightContext) // TODO: Error handle
+		n.right.(evalNode).visit(state, &rightContext) // TODO: Error handle
 
 		for x := range leftContext.currentResult.Intersect(rightContext.currentResult.Set).Iter() {
 			context.addResult(x.(string))
 		}
 	case operatorSubtract:
 		leftContext := context.sub()
-		n.left.(EvalNode).visit(state, &leftContext) // TODO: Error handle
+		n.left.(evalNode).visit(state, &leftContext) // TODO: Error handle
 
 		if leftContext.currentResult.Cardinality() == 0 {
 			// Optimization: no need to compute right side if left side is empty
@@ -268,15 +302,15 @@ func (n OperatorNode) visit(state *State, context *evalContext) error {
 		rightContext := context.sub()
 		// RegexNode needs to know about LHS to filter correctly
 		rightContext.workingResult = &leftContext.currentResult
-		n.right.(EvalNode).visit(state, &rightContext) // TODO: Error handle
+		n.right.(evalNode).visit(state, &rightContext) // TODO: Error handle
 
 		for x := range leftContext.currentResult.Difference(rightContext.currentResult.Set).Iter() {
 			context.addResult(x.(string))
 		}
 	case operatorUnion:
 		// TODO: Handle errors
-		n.left.(EvalNode).visit(state, context)
-		n.right.(EvalNode).visit(state, context)
+		n.left.(evalNode).visit(state, context)
+		n.right.(evalNode).visit(state, context)
 	}
 	return nil
 }
@@ -333,7 +367,7 @@ func (n TextNode) visit(state *State, context *evalContext) error {
 func (n GroupQueryNode) visit(state *State, context *evalContext) error {
 	subContext := newContext()
 	// TODO: Handle errors
-	n.node.(EvalNode).visit(state, &subContext)
+	n.node.(evalNode).visit(state, &subContext)
 	lookingFor := subContext.currentResult
 
 	for groupName, group := range state.groups {
@@ -359,8 +393,8 @@ func (n FunctionNode) visit(state *State, context *evalContext) error {
 		// TODO: Error handling when no or multiple results
 		keyContext := newContext()
 		valueContext := newContext()
-		n.params[0].(EvalNode).visit(state, &keyContext)
-		n.params[1].(EvalNode).visit(state, &valueContext)
+		n.params[0].(evalNode).visit(state, &keyContext)
+		n.params[1].(evalNode).visit(state, &valueContext)
 
 		key := (<-keyContext.resultIter()).(string)
 		toMatch := (<-valueContext.resultIter()).(string)
@@ -376,7 +410,7 @@ func (n FunctionNode) visit(state *State, context *evalContext) error {
 	case "clusters":
 		// TODO: Error handling
 		subContext := newContext()
-		n.params[0].(EvalNode).visit(state, &subContext)
+		n.params[0].(evalNode).visit(state, &subContext)
 
 		lookingFor := subContext.currentResult
 
@@ -498,6 +532,6 @@ func (c *evalContext) resultIter() <-chan interface{} {
 	return c.currentResult.Iter()
 }
 
-type EvalNode interface {
+type evalNode interface {
 	visit(*State, *evalContext) error
 }

@@ -276,7 +276,7 @@ func BenchmarkClusters(b *testing.B) {
 	})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		EvalRange("clusters(mynode)", &state)
+		state.Query("clusters(mynode)")
 	}
 }
 
@@ -290,12 +290,12 @@ func BenchmarkHas(b *testing.B) {
 	})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		EvalRange("has(TYPE;redis)", &state)
+		state.Query("has(TYPE;redis)")
 	}
 }
 
 func testError(t *testing.T, expected string, query string) {
-	_, err := EvalRange(query, emptyState())
+	_, err := emptyState().Query(query)
 
 	if err == nil {
 		t.Errorf("Expected error but none returned")
@@ -306,7 +306,7 @@ func testError(t *testing.T, expected string, query string) {
 }
 
 func testError2(t *testing.T, expected string, query string, state *State) {
-	_, err := EvalRange(query, state)
+	_, err := state.Query(query)
 
 	if err == nil {
 		t.Errorf("Expected error but none returned")
@@ -316,7 +316,7 @@ func testError2(t *testing.T, expected string, query string, state *State) {
 }
 
 func testEval(t *testing.T, expected Result, query string, state *State) {
-	actual, err := EvalRange(query, state)
+	actual, err := state.Query(query)
 
 	if err != nil {
 		t.Errorf("Expected result, got error: %s", err)
