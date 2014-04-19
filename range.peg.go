@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-const END_SYMBOL rune = 4
+const end_symbol rune = 4
 
 /* The rule types inferred from the grammar are below. */
 type Rule uint8
@@ -102,12 +102,12 @@ var Rul3s = [...]string{
 	"_Suf",
 }
 
-type TokenTree interface {
+type tokenTree interface {
 	Print()
 	PrintSyntax()
 	PrintSyntaxTree(buffer string)
 	Add(rule Rule, begin, end, next, depth int)
-	Expand(index int) TokenTree
+	Expand(index int) tokenTree
 	Tokens() <-chan token32
 	AST() *Node32
 	Error() []token32
@@ -637,7 +637,7 @@ func (t *tokens32) Error() []token32 {
 	return tokens
 }
 
-func (t *tokens16) Expand(index int) TokenTree {
+func (t *tokens16) Expand(index int) tokenTree {
 	tree := t.tree
 	if index >= len(tree) {
 		expanded := make([]token32, 2*len(tree))
@@ -649,7 +649,7 @@ func (t *tokens16) Expand(index int) TokenTree {
 	return nil
 }
 
-func (t *tokens32) Expand(index int) TokenTree {
+func (t *tokens32) Expand(index int) tokenTree {
 	tree := t.tree
 	if index >= len(tree) {
 		expanded := make([]token32, 2*len(tree))
@@ -661,14 +661,14 @@ func (t *tokens32) Expand(index int) TokenTree {
 
 type rangeQuery struct {
 	currentLiteral string
-	nodeStack      []Node
+	nodeStack      []parserNode
 
 	Buffer string
 	buffer []rune
 	rules  [38]func() bool
 	Parse  func(rule ...int) error
 	Reset  func()
-	TokenTree
+	tokenTree
 }
 
 type textPosition struct {
@@ -707,7 +707,7 @@ type parseError struct {
 }
 
 func (e *parseError) Error() string {
-	tokens, error := e.p.TokenTree.Error(), "\n"
+	tokens, error := e.p.tokenTree.Error(), "\n"
 	positions, p := make([]int, 2*len(tokens)), 0
 	for _, token := range tokens {
 		positions[p], p = int(token.begin), p+1
@@ -727,16 +727,16 @@ func (e *parseError) Error() string {
 }
 
 func (p *rangeQuery) PrintSyntaxTree() {
-	p.TokenTree.PrintSyntaxTree(p.Buffer)
+	p.tokenTree.PrintSyntaxTree(p.Buffer)
 }
 
 func (p *rangeQuery) Highlighter() {
-	p.TokenTree.PrintSyntax()
+	p.tokenTree.PrintSyntax()
 }
 
 func (p *rangeQuery) Execute() {
 	buffer, begin, end := p.Buffer, 0, 0
-	for token := range p.TokenTree.Tokens() {
+	for token := range p.tokenTree.Tokens() {
 		switch token.Rule {
 		case RulePegText:
 			begin, end = int(token.begin), int(token.end)
@@ -779,11 +779,11 @@ func (p *rangeQuery) Execute() {
 
 func (p *rangeQuery) Init() {
 	p.buffer = []rune(p.Buffer)
-	if len(p.buffer) == 0 || p.buffer[len(p.buffer)-1] != END_SYMBOL {
-		p.buffer = append(p.buffer, END_SYMBOL)
+	if len(p.buffer) == 0 || p.buffer[len(p.buffer)-1] != end_symbol {
+		p.buffer = append(p.buffer, end_symbol)
 	}
 
-	var tree TokenTree = &tokens16{tree: make([]token16, math.MaxInt16)}
+	var tree tokenTree = &tokens16{tree: make([]token16, math.MaxInt16)}
 	position, depth, tokenIndex, buffer, rules := 0, 0, 0, p.buffer, p.rules
 
 	p.Parse = func(rule ...int) error {
@@ -792,9 +792,9 @@ func (p *rangeQuery) Init() {
 			r = rule[0]
 		}
 		matches := p.rules[r]()
-		p.TokenTree = tree
+		p.tokenTree = tree
 		if matches {
-			p.TokenTree.trim(tokenIndex)
+			p.tokenTree.trim(tokenIndex)
 			return nil
 		}
 		return &parseError{p}
@@ -813,7 +813,7 @@ func (p *rangeQuery) Init() {
 	}
 
 	matchDot := func() bool {
-		if buffer[position] != END_SYMBOL {
+		if buffer[position] != end_symbol {
 			position++
 			return true
 		}

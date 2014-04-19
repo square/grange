@@ -2,7 +2,7 @@ package grange
 
 type rangeQuery Peg {
   currentLiteral string
-  nodeStack []Node
+  nodeStack []parserNode
 }
 
 expression <- rangeexpr combinators? !.

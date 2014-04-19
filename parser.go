@@ -1,13 +1,13 @@
 package grange
 
-func (r *rangeQuery) popNode() Node {
+func (r *rangeQuery) popNode() parserNode {
 	l := len(r.nodeStack)
 	result := r.nodeStack[l-1]
 	r.nodeStack = r.nodeStack[:l-1]
 	return result
 }
 
-func (r *rangeQuery) pushNode(node Node) {
+func (r *rangeQuery) pushNode(node parserNode) {
 	r.nodeStack = append(r.nodeStack, node)
 }
 
@@ -28,7 +28,7 @@ func (r *rangeQuery) addBraceStart() {
 }
 
 func (r *rangeQuery) addFuncArg() {
-	var funcNode Node
+	var funcNode parserNode
 
 	paramNode := r.popNode()
 	funcNode = r.nodeStack[len(r.nodeStack)-1]
@@ -41,7 +41,7 @@ func (r *rangeQuery) addBraces() {
 	right := r.popNode()
 	node := r.popNode()
 
-	var left Node
+	var left parserNode
 	left = nodeNull{}
 
 	// This is kind of bullshit but not sure a better way to do it yet
@@ -75,7 +75,7 @@ func (r *rangeQuery) addLocalClusterLookup(key string) {
 }
 
 func (r *rangeQuery) addFunction(name string) {
-	r.pushNode(nodeFunction{name, []Node{}})
+	r.pushNode(nodeFunction{name, []parserNode{}})
 }
 
 func (r *rangeQuery) addClusterLookup() {

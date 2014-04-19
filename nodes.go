@@ -13,7 +13,7 @@ const (
 	operatorUnion
 )
 
-type node interface {
+type parserNode interface {
 	String() string
 }
 
@@ -40,33 +40,33 @@ type nodeLocalClusterLookup struct {
 }
 
 type nodeGroupLookup struct {
-	node Node
+	node parserNode
 }
 
 type nodeGroupQuery struct {
-	node Node
+	node parserNode
 }
 
 type nodeClusterLookup struct {
-	node Node
-	key  Node
+	node parserNode
+	key  parserNode
 }
 
 type nodeOperator struct {
 	op    operatorType
-	left  Node
-	right Node
+	left  parserNode
+	right parserNode
 }
 
 type nodeBraces struct {
-	node  Node
-	left  Node
-	right Node
+	node  parserNode
+	left  parserNode
+	right parserNode
 }
 
 type nodeFunction struct {
 	name   string
-	params []Node
+	params []parserNode
 }
 
 func (n nodeFunction) String() string {
