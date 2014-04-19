@@ -100,9 +100,9 @@ func parseRange(input string) (Node, error) {
 }
 
 func EvalRange(input string, state *RangeState) (result mapset.Set, err error) {
-
 	if len(input) > MaxQuerySize {
-		return mapset.NewSet(), errors.New(fmt.Sprintf("Query is too long, maximum length is %d", MaxQuerySize))
+		return mapset.NewSet(),
+			errors.New(fmt.Sprintf("Query is too long, max length is %d", MaxQuerySize))
 	}
 	return evalRange(input, state)
 }
@@ -131,6 +131,10 @@ func evalRangeInplace(input string, state *RangeState, context *evalContext) (er
 			case tooManyResults:
 				// No error returned, we just chop off the results
 				err = nil
+			case error:
+				err = r.(error)
+			default:
+				panic(r)
 			}
 		}
 	}()
@@ -281,9 +285,6 @@ func (n TextNode) visit(state *RangeState, context *evalContext) error {
 	match := numericRangeRegexp.FindStringSubmatch(n.val)
 
 	if len(match) == 0 {
-		if len(n.val) > MaxQuerySize {
-			return errors.New(fmt.Sprintf("Value would exceed maximum query size: %s...", n.val[0:20]))
-		}
 		context.addResult(n.val)
 		return nil
 	}
@@ -474,6 +475,11 @@ func clusterLookup(state *RangeState, context *evalContext, key string) error {
 func (c *evalContext) addResult(value string) {
 	if c.currentResult.Cardinality() >= MaxResults {
 		panic(tooManyResults{})
+	}
+
+	if len(value) > MaxQuerySize {
+		panic(errors.New(
+			fmt.Sprintf("Value would exceed max query size: %s...", value[0:20])))
 	}
 
 	c.currentResult.Add(value)

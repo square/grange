@@ -247,7 +247,7 @@ func TestNumericRange(t *testing.T) {
 func TestLengthError(t *testing.T) {
 	longString := strings.Repeat("a", MaxQuerySize)
 	testEval(t, NewResult(longString), longString, emptyState())
-	testError2(t, fmt.Sprintf("Query is too long, maximum length is %d", MaxQuerySize), longString+"a", emptyState())
+	testError2(t, fmt.Sprintf("Query is too long, max length is %d", MaxQuerySize), longString+"a", emptyState())
 }
 
 func TestMaxResults(t *testing.T) {
@@ -261,7 +261,7 @@ func TestMaxResults(t *testing.T) {
 
 func TestMaxText(t *testing.T) {
 	longString := strings.Repeat("a", MaxQuerySize+1)
-	testError2(t, "Value would exceed maximum query size: aaaaaaaaaaaaaaaaaaaa...", "%a",
+	testError2(t, "Value would exceed max query size: aaaaaaaaaaaaaaaaaaaa...", "%a",
 		singleCluster("a", Cluster{
 			"CLUSTER": []string{longString},
 		}))
