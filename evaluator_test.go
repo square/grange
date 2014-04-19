@@ -270,7 +270,7 @@ func BenchmarkClusters(b *testing.B) {
 	// setup fake state
 	state := NewState()
 
-	AddCluster(&state, "cluster", Cluster{
+	state.AddCluster("cluster", Cluster{
 		"CLUSTER": []string{"$ALL"},
 		"ALL":     []string{"mynode"},
 	})
@@ -284,7 +284,7 @@ func BenchmarkHas(b *testing.B) {
 	// setup fake state
 	state := NewState()
 
-	AddCluster(&state, "cluster", Cluster{
+	state.AddCluster("cluster", Cluster{
 		"CLUSTER": []string{"mynode"},
 		"TYPE":    []string{"redis"},
 	})

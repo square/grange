@@ -1,3 +1,101 @@
+/*
+Grange implements a modern subset of the range query language. It is an
+expressive grammar for selecting information out of arbitrary, self-referential
+metadata. It was developed for querying information about hosts across
+datacenters.
+
+Basics
+
+A range query operates on a state containing clusters and groups.
+
+    state := grange.NewState()
+    state.AddCluster("a", Cluster{
+      CLUSTER: []string{"a", "b", "c"},
+      TYPE:    []string{"letters"},
+    })
+    result, err = state.Query("%a")      // "a", "b", "c"
+    result, err = state.Query("%a:KEYS") // "CLUSTER", "TYPE"
+    result, err = state.Query("%a:TYPE") // "letters"
+
+Groups are simpler than clusters: each group only has a single value array. All
+CLUSTER values should be present in at least one group. Traditionally, groups
+are used to drive a config management system.
+
+    state := grange.NewState()
+    state.SetGroups(Cluster{
+      "dc1": []string{"host1", "host2"},
+      "dc2": []string{"host3", "host4"},
+    })
+    result, err := state.Query("@dc1")  // "host1", "host2"
+
+Values can also be range expressions, so that clusters and groups can be defined in terms of each other ("self-referential").
+
+    state := grange.NewState()
+    state.SetGroups(Cluster{"dc1": []string{"host1", "host2"})
+    state.AddCluster("down", Cluster{ CLUSTER: []string{"host1"})
+    state.AddCluster("dc1",  Cluster{ CLUSTER: []string{"@dc1 - %down"})
+
+    result, err := state.Query("%dc1")  // "host2"
+
+For an example usage of this library, see
+https://github.com/xaviershay/grange-server
+
+Syntax
+
+    host1        - value constant, returns itself.
+    host1,host2  - union, concatenates both sides.
+    host1..3     - numeric expansion.
+    a{b,c}d      - brace expansion, works just like your shell.
+    (a,b) & a    - returns intersection of boths sides.
+    (a,b) - a    - returns left side minus right side.
+    /abc/        - regex match. When used on the right side of an operator,
+                   filters the left side values using the regex. When used by
+                   itself, matches all group values.
+    %dc1         - cluster lookup, returns the values at CLUSTER key in "dc1"
+                   cluster.
+    %dc1:KEYS    - returns all available keys for a cluster.
+    %dc1:SOMEKEY - returns values at SOMEKEY key.
+    %dc1:{A,B}   - returns values at both A and B key. Query inside braces can
+                   be any range expression.
+    @dc1         - group lookup, returns values in "dc1" group.
+    $SOMEKEY     - local lookup, only valid inside cluster or group values. For
+                   clusters, looks up values from SOMEKEY in the current
+                   cluster. When used in a group value, expands to the group
+                   named SOMEKEY.
+    ?host1       - returns all groups that contain host1
+    clusters(h1) - returns all clusters for which the h1 is present in the
+                   CLUSTER key. Parameter can be any range expression.
+    has(KEY;val) - returns all clusters with SOMEKEY matching value
+    q(x://blah)  - quote a constant value, the parameter will be returned as
+                   is and not evaluated as a range expression. Useful for
+                   storing metadata in clusters.
+
+All of the above can be combined to form highly expressive queries.
+
+    %{has(DC;east) & has(TYPE;redis)}:DOWN
+        - all down redis nodes in the east datacenter.
+
+    has(TYPE;%{clusters(host1)}:TYPE)
+        - all clusters with types matching the clusters of host1.
+
+    %{clusters(/foo/)}:{DOC,OWNER}
+        - OWNER and DOC values for all clusters on all hosts matching "foo".
+
+Differences From Libcrange
+
+A number of libcrange features have been deliberately omitted from grange,
+either becase they are archaic features of the language, or they are
+mis-aligned with the goals of this library.
+
+    - ^ "admin" operator is not supported. Not a useful concept anymore.
+    - # "hash" operator is not supported. Normal function calls are sufficient.
+    - Non-deterministic functions, in particular functions that make network
+      calls. This library aims to provide fast query performance, which is much
+      harder when dealing with non-determinism. Clients who wish to emulate
+      this behaviour should either calculate function results upfront and
+      import them into the state, or post-process results.
+
+*/
 package grange
 
 import (
@@ -7,7 +105,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/deckarep/golang-set"
+	"gopkg.in/deckarep/v1/golang-set"
 )
 
 // State holds data that queries operate over. Queries in grange are
@@ -55,8 +153,15 @@ var (
 // Clusters is a getter for all clusters that have been added to the state.
 // There isn't really a good reason to use this other than for debugging
 // purposes.
-func (s State) Clusters() map[string]Cluster {
+func (s *State) Clusters() map[string]Cluster {
 	return s.clusters
+}
+
+// Groups is a getter for all groups that have been added to the state.
+// There isn't really a good reason to use this other than for debugging
+// purposes.
+func (s *State) Groups() Cluster {
+	return s.groups
 }
 
 // NewState creates a new state to be passed into EvalRange. This will need to
@@ -77,13 +182,13 @@ func NewResult(args ...interface{}) Result {
 }
 
 // SetGroups overrides any existing groups and resets the cache.
-func SetGroups(state *State, c Cluster) {
+func (state *State) SetGroups(c Cluster) {
 	state.groups = c
 	state.ResetCache()
 }
 
 // AddCluster adds a new cluster to the state and resets the cache.
-func AddCluster(state *State, name string, c Cluster) {
+func (state *State) AddCluster(name string, c Cluster) {
 	state.clusters[name] = c
 	state.ResetCache()
 }

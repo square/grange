@@ -1,44 +1,22 @@
 grange
 ======
 
-A golang port of librange.
+Grange implements a modern subset of the range query language. It is an
+expressive grammar for selecting information out of arbitrary, self-referential
+metadata. It was developed for querying information about hosts across
+datacenters.
 
-Incomplete and not ready to be used for anything.
+    %{has(DC;east) & has(TYPE;redis)}:DOWN
+
+See [godocs](https://godoc.org/github.com/xaviershay/grange) for usage and
+syntax.
 
 Goals
 -----
 
 * Easily run cross-platform.
-* Good error messages for query language.
+* Error messages when things go wrong.
 * Fast. (Looking at you, `clusters`.)
-
-Supported Syntax
-----------------
-
-* `a.example.com`
-* `a.example.com,b.example.com`
-* `{a,b}.example.com`
-* `example.{com,org}`
-* `%cluster1`
-* `%cluster1:SOMEKEY`
-* `%cluster1:KEYS`
-* `%cluster1,%cluster2`
-* `%cluster1 & %cluster2`
-* `%cluster1 - %cluster2`
-* `has(TYPE;mysql)`
-* `has(TYPE;mysql) & has(ENV;prod)`
-* `$KEY`
-* `@group`
-* `%{expr}`
-* `%{expr}:KEY`
-* `/match/`
-* `clusters(example.com)`
-* `has(TYPE;%{clusters(a.example.com)}:TYPE)` (range expression in parameter)
-* `q(http://blah)`
-* `?example.com`
-* `a1..9.example.com`
-* `%cluster:{KEY1,KEY2}`
-* Expressions as values.
 
 Development
 -----------
