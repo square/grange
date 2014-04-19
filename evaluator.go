@@ -10,8 +10,6 @@ import (
 	"github.com/deckarep/golang-set"
 )
 
-type Cluster map[string][]string
-
 type RangeState struct {
 	clusters map[string]Cluster
 	groups   Cluster
@@ -22,10 +20,13 @@ type RangeState struct {
 	clusterCache map[string]map[string]*mapset.Set
 }
 
+type Cluster map[string][]string
+
 var (
-	// Maximum number of runes that grange will try to parse in a query. Queries
-	// longer than this will be rejected. This limit also applies to cluster and
-	// group names and values. This is an anti-DOS measure.
+  // Maximum number of characters that grange will try to parse in a query.
+  // Queries longer than this will be rejected. This limit also applies to
+  // cluster and group names and values. Combined with MaxResults, this limits
+  // result sizes to approximately 1MB.
 	MaxQuerySize = 1000
 
 	// The maximum number of results a query can return. Execution will be
@@ -34,7 +35,7 @@ var (
 	MaxResults = 10000
 )
 
-type tooManyResults struct{}
+type tooManyResults struct {}
 
 func (state *RangeState) PrimeCache() {
 	// traverse and expand every cluster, adding them to cache.
@@ -102,7 +103,7 @@ func parseRange(input string) (Node, error) {
 func EvalRange(input string, state *RangeState) (result mapset.Set, err error) {
 	if len(input) > MaxQuerySize {
 		return mapset.NewSet(),
-			errors.New(fmt.Sprintf("Query is too long, max length is %d", MaxQuerySize))
+      errors.New(fmt.Sprintf("Query is too long, max length is %d", MaxQuerySize))
 	}
 	return evalRange(input, state)
 }
@@ -125,19 +126,19 @@ func evalRangeInplace(input string, state *RangeState, context *evalContext) (er
 		return errors.New("Could not parse query")
 	}
 
-	defer func() {
-		if r := recover(); r != nil {
-			switch r.(type) {
-			case tooManyResults:
-				// No error returned, we just chop off the results
-				err = nil
-			case error:
-				err = r.(error)
-			default:
-				panic(r)
-			}
-		}
-	}()
+  defer func() {
+    if r := recover(); r != nil {
+      switch r.(type) {
+      case tooManyResults:
+        // No error returned, we just chop off the results
+        err = nil
+      case error:
+        err = r.(error)
+      default:
+        panic(r)
+      }
+    }
+  }()
 
 	return node.(EvalNode).visit(state, context)
 }
@@ -315,7 +316,7 @@ func (n TextNode) visit(state *RangeState, context *evalContext) error {
 	high, _ := strconv.Atoi(rightN)
 
 	for x := low; x <= high; x++ {
-		context.addResult(fmt.Sprintf("%s%0"+width+"d%s", leftStr, x, trailing))
+	 context.addResult(fmt.Sprintf("%s%0"+width+"d%s", leftStr, x, trailing))
 	}
 
 	return nil
@@ -474,13 +475,13 @@ func clusterLookup(state *RangeState, context *evalContext, key string) error {
 
 func (c *evalContext) addResult(value string) {
 	if c.currentResult.Cardinality() >= MaxResults {
-		panic(tooManyResults{})
+    panic(tooManyResults{})
 	}
 
-	if len(value) > MaxQuerySize {
-		panic(errors.New(
-			fmt.Sprintf("Value would exceed max query size: %s...", value[0:20])))
-	}
+  if len(value) > MaxQuerySize {
+    panic(errors.New(
+      fmt.Sprintf("Value would exceed max query size: %s...", value[0:20])))
+  }
 
 	c.currentResult.Add(value)
 }
