@@ -306,7 +306,7 @@ func testError(t *testing.T, expected string, query string) {
 	}
 }
 
-func testError2(t *testing.T, expected string, query string, state *RangeState) {
+func testError2(t *testing.T, expected string, query string, state *State) {
 	_, err := EvalRange(query, state)
 
 	if err == nil {
@@ -316,7 +316,7 @@ func testError2(t *testing.T, expected string, query string, state *RangeState) 
 	}
 }
 
-func testEval(t *testing.T, expected mapset.Set, query string, state *RangeState) {
+func testEval(t *testing.T, expected mapset.Set, query string, state *State) {
 	actual, err := EvalRange(query, state)
 
 	if err != nil {
@@ -326,31 +326,31 @@ func testEval(t *testing.T, expected mapset.Set, query string, state *RangeState
 	}
 }
 
-func singleCluster(name string, c Cluster) *RangeState {
+func singleCluster(name string, c Cluster) *State {
 	state := NewState()
 	state.clusters[name] = c
 	return &state
 }
 
-func singleGroup(name string, members ...string) *RangeState {
+func singleGroup(name string, members ...string) *State {
 	state := NewState()
 	state.groups[name] = members
 	return &state
 }
 
-func multiGroup(c Cluster) *RangeState {
+func multiGroup(c Cluster) *State {
 	state := NewState()
 	state.groups = c
 	return &state
 }
 
-func multiCluster(cs map[string]Cluster) *RangeState {
+func multiCluster(cs map[string]Cluster) *State {
 	state := NewState()
 	state.clusters = cs
 	return &state
 }
 
-func emptyState() *RangeState {
+func emptyState() *State {
 	state := NewState()
 	return &state
 }

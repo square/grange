@@ -10,7 +10,9 @@ import (
 	"github.com/deckarep/golang-set"
 )
 
-type RangeState struct {
+// --------- STATE
+
+type State struct {
 	clusters map[string]Cluster
 	groups   Cluster
 
@@ -37,13 +39,15 @@ var (
 
 type tooManyResults struct {}
 
-func (state *RangeState) PrimeCache() {
+func (state *State) PrimeCache() {
 	// traverse and expand every cluster, adding them to cache.
 	EvalRange("clusters(a)", state)
 
 	// traverse and expand every group
 	EvalRange("//", state)
 }
+
+// --------- CONTEXTS
 
 type evalContext struct {
 	currentClusterName string
@@ -62,23 +66,23 @@ func newClusterContext(clusterName string) evalContext {
 	}
 }
 
-func SetGroups(state *RangeState, c Cluster) {
+func SetGroups(state *State, c Cluster) {
 	state.groups = c
 	state.ResetCache()
 }
 
-func AddCluster(state *RangeState, name string, c Cluster) {
+func AddCluster(state *State, name string, c Cluster) {
 	state.clusters[name] = c
 	state.ResetCache()
 }
 
-func (state *RangeState) ResetCache() {
+func (state *State) ResetCache() {
 	state.groupCache = map[string]*mapset.Set{}
 	state.clusterCache = map[string]map[string]*mapset.Set{}
 }
 
-func NewState() RangeState {
-	state := RangeState{
+func NewState() State {
+	state := State{
 		clusters: map[string]Cluster{},
 		groups:   Cluster{},
 	}
@@ -100,7 +104,7 @@ func parseRange(input string) (Node, error) {
 	return r.nodeStack[0], nil
 }
 
-func EvalRange(input string, state *RangeState) (result mapset.Set, err error) {
+func EvalRange(input string, state *State) (result mapset.Set, err error) {
 	if len(input) > MaxQuerySize {
 		return mapset.NewSet(),
       errors.New(fmt.Sprintf("Query is too long, max length is %d", MaxQuerySize))
@@ -108,19 +112,19 @@ func EvalRange(input string, state *RangeState) (result mapset.Set, err error) {
 	return evalRange(input, state)
 }
 
-func evalRange(input string, state *RangeState) (result mapset.Set, err error) {
+func evalRange(input string, state *State) (result mapset.Set, err error) {
 	context := newContext()
 	return evalRangeWithContext(input, state, &context)
 }
 
-func evalRangeWithContext(input string, state *RangeState, context *evalContext) (mapset.Set, error) {
+func evalRangeWithContext(input string, state *State, context *evalContext) (mapset.Set, error) {
 	err := evalRangeInplace(input, state, context)
 
 	return context.currentResult, err
 }
 
 // Useful internally so that results do not need to be copied all over the place
-func evalRangeInplace(input string, state *RangeState, context *evalContext) (err error) {
+func evalRangeInplace(input string, state *State, context *evalContext) (err error) {
 	node, parseError := parseRange(input)
 	if parseError != nil {
 		return errors.New("Could not parse query")
@@ -147,7 +151,7 @@ func (c evalContext) hasResults() bool {
 	return c.currentResult.Cardinality() == 0
 }
 
-func (n BracesNode) visit(state *RangeState, context *evalContext) error {
+func (n BracesNode) visit(state *State, context *evalContext) error {
 	leftContext := newContext()
 	rightContext := newContext()
 	middleContext := newContext()
@@ -177,7 +181,7 @@ func (n BracesNode) visit(state *RangeState, context *evalContext) error {
 	return nil
 }
 
-func (n LocalClusterLookupNode) visit(state *RangeState, context *evalContext) error {
+func (n LocalClusterLookupNode) visit(state *State, context *evalContext) error {
 	if context.currentClusterName == "" {
 		return groupLookup(state, context, n.key)
 	}
@@ -185,7 +189,7 @@ func (n LocalClusterLookupNode) visit(state *RangeState, context *evalContext) e
 	return clusterLookup(state, context, n.key)
 }
 
-func (n ClusterLookupNode) visit(state *RangeState, context *evalContext) error {
+func (n ClusterLookupNode) visit(state *State, context *evalContext) error {
 	var evalErr error
 
 	subContext := newContext()
@@ -213,7 +217,7 @@ func (n ClusterLookupNode) visit(state *RangeState, context *evalContext) error 
 	return nil
 }
 
-func (n GroupLookupNode) visit(state *RangeState, context *evalContext) error {
+func (n GroupLookupNode) visit(state *State, context *evalContext) error {
 	subContext := context.sub()
 	n.node.(EvalNode).visit(state, &subContext) // TODO: Error handle
 
@@ -228,7 +232,7 @@ func (c evalContext) sub() evalContext {
 	return newClusterContext(c.currentClusterName)
 }
 
-func (n OperatorNode) visit(state *RangeState, context *evalContext) error {
+func (n OperatorNode) visit(state *State, context *evalContext) error {
 	switch n.op {
 	case operatorIntersect:
 
@@ -273,7 +277,7 @@ func (n OperatorNode) visit(state *RangeState, context *evalContext) error {
 	return nil
 }
 
-func (n ConstantNode) visit(state *RangeState, context *evalContext) error {
+func (n ConstantNode) visit(state *State, context *evalContext) error {
 	context.addResult(n.val)
 	return nil
 }
@@ -282,7 +286,7 @@ var (
 	numericRangeRegexp = regexp.MustCompile("^(.*?)(\\d+)\\.\\.([^\\d]*?)?(\\d+)(.*)$")
 )
 
-func (n TextNode) visit(state *RangeState, context *evalContext) error {
+func (n TextNode) visit(state *State, context *evalContext) error {
 	match := numericRangeRegexp.FindStringSubmatch(n.val)
 
 	if len(match) == 0 {
@@ -322,7 +326,7 @@ func (n TextNode) visit(state *RangeState, context *evalContext) error {
 	return nil
 }
 
-func (n GroupQueryNode) visit(state *RangeState, context *evalContext) error {
+func (n GroupQueryNode) visit(state *State, context *evalContext) error {
 	subContext := newContext()
 	// TODO: Handle errors
 	n.node.(EvalNode).visit(state, &subContext)
@@ -345,7 +349,7 @@ func (n GroupQueryNode) visit(state *RangeState, context *evalContext) error {
 	return nil
 }
 
-func (n FunctionNode) visit(state *RangeState, context *evalContext) error {
+func (n FunctionNode) visit(state *State, context *evalContext) error {
 	switch n.name {
 	case "has":
 		// TODO: Error handling when no or multiple results
@@ -386,7 +390,7 @@ func (n FunctionNode) visit(state *RangeState, context *evalContext) error {
 	return nil
 }
 
-func (n RegexNode) visit(state *RangeState, context *evalContext) error {
+func (n RegexNode) visit(state *State, context *evalContext) error {
 	if context.workingResult == nil {
 		subContext := context.sub()
 		state.allValues(&subContext)
@@ -402,11 +406,11 @@ func (n RegexNode) visit(state *RangeState, context *evalContext) error {
 	return nil
 }
 
-func (n NullNode) visit(state *RangeState, context *evalContext) error {
+func (n NullNode) visit(state *State, context *evalContext) error {
 	return nil
 }
 
-func (state *RangeState) allValues(context *evalContext) error {
+func (state *State) allValues(context *evalContext) error {
 	// Expand everything into the set
 	for _, v := range state.groups {
 		for _, subv := range v {
@@ -418,7 +422,7 @@ func (state *RangeState) allValues(context *evalContext) error {
 	return nil
 }
 
-func groupLookup(state *RangeState, context *evalContext, key string) error {
+func groupLookup(state *State, context *evalContext, key string) error {
 	if state.groupCache[key] != nil {
 		for x := range state.groupCache[key].Iter() {
 			context.addResult(x.(string))
@@ -436,7 +440,7 @@ func groupLookup(state *RangeState, context *evalContext, key string) error {
 	return nil
 }
 
-func clusterLookup(state *RangeState, context *evalContext, key string) error {
+func clusterLookup(state *State, context *evalContext, key string) error {
 	var evalErr error
 	clusterName := context.currentClusterName
 	cluster := state.clusters[clusterName]
@@ -491,5 +495,5 @@ func (c *evalContext) resultIter() <-chan interface{} {
 }
 
 type EvalNode interface {
-	visit(*RangeState, *evalContext) error
+	visit(*State, *evalContext) error
 }
