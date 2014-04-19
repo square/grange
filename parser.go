@@ -12,19 +12,19 @@ func (r *rangeQuery) pushNode(node Node) {
 }
 
 func (r *rangeQuery) addValue(val string) {
-	r.pushNode(TextNode{val})
+	r.pushNode(nodeText{val})
 }
 
 func (r *rangeQuery) addConstant(val string) {
-	r.pushNode(ConstantNode{val})
+	r.pushNode(nodeConstant{val})
 }
 
 func (r *rangeQuery) addNull() {
-	r.pushNode(NullNode{})
+	r.pushNode(nodeNull{})
 }
 
 func (r *rangeQuery) addBraceStart() {
-	r.pushNode(BraceStartNode{})
+	r.pushNode(nodeBraceStart{})
 }
 
 func (r *rangeQuery) addFuncArg() {
@@ -32,7 +32,7 @@ func (r *rangeQuery) addFuncArg() {
 
 	paramNode := r.popNode()
 	funcNode = r.nodeStack[len(r.nodeStack)-1]
-	fn := funcNode.(FunctionNode)
+	fn := funcNode.(nodeFunction)
 	fn.params = append(fn.params, paramNode)
 	r.nodeStack[len(r.nodeStack)-1] = fn
 }
@@ -42,49 +42,49 @@ func (r *rangeQuery) addBraces() {
 	node := r.popNode()
 
 	var left Node
-	left = NullNode{}
+	left = nodeNull{}
 
 	// This is kind of bullshit but not sure a better way to do it yet
 	switch node.(type) {
-	case BraceStartNode:
-		node = NullNode{}
+	case nodeBraceStart:
+		node = nodeNull{}
 	default:
 		if len(r.nodeStack) > 0 {
 			left = r.popNode()
 			switch left.(type) {
-			case BraceStartNode:
-				left = NullNode{}
+			case nodeBraceStart:
+				left = nodeNull{}
 			}
 		}
 	}
-	r.pushNode(BracesNode{node, left, right})
+	r.pushNode(nodeBraces{node, left, right})
 }
 
 func (r *rangeQuery) addGroupLookup() {
 	exprNode := r.popNode()
-	r.pushNode(GroupLookupNode{exprNode})
+	r.pushNode(nodeGroupLookup{exprNode})
 }
 
 func (r *rangeQuery) addGroupQuery() {
 	exprNode := r.popNode()
-	r.pushNode(GroupQueryNode{exprNode})
+	r.pushNode(nodeGroupQuery{exprNode})
 }
 
 func (r *rangeQuery) addLocalClusterLookup(key string) {
-	r.pushNode(LocalClusterLookupNode{key})
+	r.pushNode(nodeLocalClusterLookup{key})
 }
 
 func (r *rangeQuery) addFunction(name string) {
-	r.pushNode(FunctionNode{name, []Node{}})
+	r.pushNode(nodeFunction{name, []Node{}})
 }
 
 func (r *rangeQuery) addClusterLookup() {
 	exprNode := r.popNode()
-	r.pushNode(ClusterLookupNode{exprNode, ConstantNode{"CLUSTER"}})
+	r.pushNode(nodeClusterLookup{exprNode, nodeConstant{"CLUSTER"}})
 }
 
 func (r *rangeQuery) addRegex(val string) {
-	r.pushNode(RegexNode{val})
+	r.pushNode(nodeRegexp{val})
 }
 
 func (r *rangeQuery) addKeyLookup() {
@@ -94,8 +94,8 @@ func (r *rangeQuery) addKeyLookup() {
 		lookupNode := r.popNode()
 
 		switch lookupNode.(type) {
-		case ClusterLookupNode:
-			n := lookupNode.(ClusterLookupNode)
+		case nodeClusterLookup:
+			n := lookupNode.(nodeClusterLookup)
 			n.key = keyNode
 			r.pushNode(n)
 			// TODO: Error out if wrong node type
@@ -107,5 +107,5 @@ func (r *rangeQuery) addOperator(typ operatorType) {
 	right := r.popNode()
 	left := r.popNode()
 
-	r.pushNode(OperatorNode{typ, left, right})
+	r.pushNode(nodeOperator{typ, left, right})
 }

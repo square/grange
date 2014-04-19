@@ -189,7 +189,7 @@ func (c evalContext) hasResults() bool {
 	return c.currentResult.Cardinality() == 0
 }
 
-func (n BracesNode) visit(state *State, context *evalContext) error {
+func (n nodeBraces) visit(state *State, context *evalContext) error {
 	leftContext := newContext()
 	rightContext := newContext()
 	middleContext := newContext()
@@ -219,7 +219,7 @@ func (n BracesNode) visit(state *State, context *evalContext) error {
 	return nil
 }
 
-func (n LocalClusterLookupNode) visit(state *State, context *evalContext) error {
+func (n nodeLocalClusterLookup) visit(state *State, context *evalContext) error {
 	if context.currentClusterName == "" {
 		return groupLookup(state, context, n.key)
 	}
@@ -227,7 +227,7 @@ func (n LocalClusterLookupNode) visit(state *State, context *evalContext) error 
 	return clusterLookup(state, context, n.key)
 }
 
-func (n ClusterLookupNode) visit(state *State, context *evalContext) error {
+func (n nodeClusterLookup) visit(state *State, context *evalContext) error {
 	var evalErr error
 
 	subContext := newContext()
@@ -255,7 +255,7 @@ func (n ClusterLookupNode) visit(state *State, context *evalContext) error {
 	return nil
 }
 
-func (n GroupLookupNode) visit(state *State, context *evalContext) error {
+func (n nodeGroupLookup) visit(state *State, context *evalContext) error {
 	subContext := context.sub()
 	n.node.(evalNode).visit(state, &subContext) // TODO: Error handle
 
@@ -270,7 +270,7 @@ func (c evalContext) sub() evalContext {
 	return newClusterContext(c.currentClusterName)
 }
 
-func (n OperatorNode) visit(state *State, context *evalContext) error {
+func (n nodeOperator) visit(state *State, context *evalContext) error {
 	switch n.op {
 	case operatorIntersect:
 
@@ -283,7 +283,7 @@ func (n OperatorNode) visit(state *State, context *evalContext) error {
 		}
 
 		rightContext := context.sub()
-		// RegexNode needs to know about LHS to filter correctly
+		// nodeRegexp needs to know about LHS to filter correctly
 		rightContext.workingResult = &leftContext.currentResult
 		n.right.(evalNode).visit(state, &rightContext) // TODO: Error handle
 
@@ -300,7 +300,7 @@ func (n OperatorNode) visit(state *State, context *evalContext) error {
 		}
 
 		rightContext := context.sub()
-		// RegexNode needs to know about LHS to filter correctly
+		// nodeRegexp needs to know about LHS to filter correctly
 		rightContext.workingResult = &leftContext.currentResult
 		n.right.(evalNode).visit(state, &rightContext) // TODO: Error handle
 
@@ -315,7 +315,7 @@ func (n OperatorNode) visit(state *State, context *evalContext) error {
 	return nil
 }
 
-func (n ConstantNode) visit(state *State, context *evalContext) error {
+func (n nodeConstant) visit(state *State, context *evalContext) error {
 	context.addResult(n.val)
 	return nil
 }
@@ -324,7 +324,7 @@ var (
 	numericRangeRegexp = regexp.MustCompile("^(.*?)(\\d+)\\.\\.([^\\d]*?)?(\\d+)(.*)$")
 )
 
-func (n TextNode) visit(state *State, context *evalContext) error {
+func (n nodeText) visit(state *State, context *evalContext) error {
 	match := numericRangeRegexp.FindStringSubmatch(n.val)
 
 	if len(match) == 0 {
@@ -364,7 +364,7 @@ func (n TextNode) visit(state *State, context *evalContext) error {
 	return nil
 }
 
-func (n GroupQueryNode) visit(state *State, context *evalContext) error {
+func (n nodeGroupQuery) visit(state *State, context *evalContext) error {
 	subContext := newContext()
 	// TODO: Handle errors
 	n.node.(evalNode).visit(state, &subContext)
@@ -387,7 +387,7 @@ func (n GroupQueryNode) visit(state *State, context *evalContext) error {
 	return nil
 }
 
-func (n FunctionNode) visit(state *State, context *evalContext) error {
+func (n nodeFunction) visit(state *State, context *evalContext) error {
 	switch n.name {
 	case "has":
 		// TODO: Error handling when no or multiple results
@@ -428,7 +428,7 @@ func (n FunctionNode) visit(state *State, context *evalContext) error {
 	return nil
 }
 
-func (n RegexNode) visit(state *State, context *evalContext) error {
+func (n nodeRegexp) visit(state *State, context *evalContext) error {
 	if context.workingResult == nil {
 		subContext := context.sub()
 		state.allValues(&subContext)
@@ -444,7 +444,7 @@ func (n RegexNode) visit(state *State, context *evalContext) error {
 	return nil
 }
 
-func (n NullNode) visit(state *State, context *evalContext) error {
+func (n nodeNull) visit(state *State, context *evalContext) error {
 	return nil
 }
 

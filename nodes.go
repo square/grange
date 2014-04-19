@@ -13,63 +13,63 @@ const (
 	operatorUnion
 )
 
-type Node interface {
+type node interface {
 	String() string
 }
 
-type NullNode struct{}
+type nodeNull struct{}
 
 // Transient marker node to delineate the start of a braces capture. This is
 // kind of weird. This node should never be present one parsing is complete.
-type BraceStartNode struct{}
+type nodeBraceStart struct{}
 
-type TextNode struct {
+type nodeText struct {
 	val string
 }
 
-type ConstantNode struct {
+type nodeConstant struct {
 	val string
 }
 
-type RegexNode struct {
+type nodeRegexp struct {
 	val string
 }
 
-type LocalClusterLookupNode struct {
+type nodeLocalClusterLookup struct {
 	key string
 }
 
-type GroupLookupNode struct {
+type nodeGroupLookup struct {
 	node Node
 }
 
-type GroupQueryNode struct {
+type nodeGroupQuery struct {
 	node Node
 }
 
-type ClusterLookupNode struct {
+type nodeClusterLookup struct {
 	node Node
 	key  Node
 }
 
-type OperatorNode struct {
+type nodeOperator struct {
 	op    operatorType
 	left  Node
 	right Node
 }
 
-type BracesNode struct {
+type nodeBraces struct {
 	node  Node
 	left  Node
 	right Node
 }
 
-type FunctionNode struct {
+type nodeFunction struct {
 	name   string
 	params []Node
 }
 
-func (n FunctionNode) String() string {
+func (n nodeFunction) String() string {
 	result := []string{}
 	for _, param := range n.params {
 		result = append(result, param.String())
@@ -78,53 +78,53 @@ func (n FunctionNode) String() string {
 	return fmt.Sprintf("%s(%s)", n.name, strings.Join(result, ";"))
 }
 
-func (n TextNode) String() string {
+func (n nodeText) String() string {
 	return n.val
 }
 
-func (n ConstantNode) String() string {
+func (n nodeConstant) String() string {
 	return n.val
 }
 
-func (n RegexNode) String() string {
+func (n nodeRegexp) String() string {
 	return fmt.Sprintf("/%s/", n.val)
 }
 
-func (n ClusterLookupNode) String() string {
+func (n nodeClusterLookup) String() string {
 	switch n.key.(type) {
-	case TextNode:
-		if n.key.(TextNode).val == "CLUSTER" {
+	case nodeText:
+		if n.key.(nodeText).val == "CLUSTER" {
 			return fmt.Sprintf("%%{%s}", n.node)
 		}
 	}
 	return fmt.Sprintf("%%{%s}:%s", n.node, n.key)
 }
 
-func (n GroupLookupNode) String() string {
+func (n nodeGroupLookup) String() string {
 	return fmt.Sprintf("@%s", n.node)
 }
 
-func (n GroupQueryNode) String() string {
+func (n nodeGroupQuery) String() string {
 	return fmt.Sprintf("?%s", n.node)
 }
 
-func (n LocalClusterLookupNode) String() string {
+func (n nodeLocalClusterLookup) String() string {
 	return fmt.Sprintf("$%s", n.key)
 }
 
-func (n BracesNode) String() string {
+func (n nodeBraces) String() string {
 	return fmt.Sprintf("%s{%s}%s", n.node, n.left, n.right)
 }
 
-func (n NullNode) String() string {
+func (n nodeNull) String() string {
 	return ""
 }
 
-func (n BraceStartNode) String() string {
+func (n nodeBraceStart) String() string {
 	return ""
 }
 
-func (n OperatorNode) String() string {
+func (n nodeOperator) String() string {
 	var op string
 
 	switch n.op {
