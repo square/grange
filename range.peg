@@ -16,31 +16,31 @@ rangeexpr <- space
     / localkey
     / regex
     / value
-    / { p.AddBraceStart() } braces
+    / { p.addBraceStart() } braces
     / null)
 
 combinators <- space (union / intersect / exclude / braces)
-intersect   <- '&' rangeexpr  { p.AddOperator(operatorIntersect) } combinators?
-exclude     <- '-' rangeexpr  { p.AddOperator(operatorSubtract) } combinators?
-union       <- ',' rangeexpr  { p.AddOperator(operatorUnion) } combinators?
+intersect   <- '&' rangeexpr  { p.addOperator(operatorIntersect) } combinators?
+exclude     <- '-' rangeexpr  { p.addOperator(operatorSubtract) } combinators?
+union       <- ',' rangeexpr  { p.addOperator(operatorUnion) } combinators?
 
 # See https://github.com/pointlander/peg/issues/21 for context
-braces  <- '{' rangeexpr combinators? '}' rangeexpr? { p.AddBraces() }
+braces  <- '{' rangeexpr combinators? '}' rangeexpr? { p.addBraces() }
 
-groupq  <- '?' rangeexpr { p.AddGroupQuery() }
-cluster <- '%' rangeexpr { p.AddClusterLookup() } key?
-group   <- '@' rangeexpr { p.AddGroupLookup() }
+groupq  <- '?' rangeexpr { p.addGroupQuery() }
+cluster <- '%' rangeexpr { p.addClusterLookup() } key?
+group   <- '@' rangeexpr { p.addGroupLookup() }
 
 # TODO: Use rangeexpr for the following?
-key      <- ':' rangeexpr { p.AddKeyLookup() }
-localkey <- '$' literal { p.AddLocalClusterLookup(buffer[begin:end]) }
+key      <- ':' rangeexpr { p.addKeyLookup() }
+localkey <- '$' literal { p.addLocalClusterLookup(buffer[begin:end]) }
 
-function <- literal { p.AddFunction(buffer[begin:end]) } '(' funcargs ')'
-funcargs <- rangeexpr { p.AddFuncArg() } ';' funcargs
-          / rangeexpr { p.AddFuncArg() }
+function <- literal { p.addFunction(buffer[begin:end]) } '(' funcargs ')'
+funcargs <- rangeexpr { p.addFuncArg() } ';' funcargs
+          / rangeexpr { p.addFuncArg() }
 
-regex   <- '/' < (!'/' .)* > '/' { p.AddRegex(buffer[begin:end]) }
+regex   <- '/' < (!'/' .)* > '/' { p.addRegex(buffer[begin:end]) }
 literal <- <[[a-z0-9-_]]+>
-value   <- <[[a-z0-9-_.]]+> { p.AddValue(buffer[begin:end]) }
+value   <- <[[a-z0-9-_.]]+> { p.addValue(buffer[begin:end]) }
 space   <- ' '*
-q       <- 'q(' <(!')' .)*> ')' { p.AddConstant(buffer[begin:end]) }
+q       <- 'q(' <(!')' .)*> ')' { p.addConstant(buffer[begin:end]) }

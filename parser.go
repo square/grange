@@ -11,23 +11,23 @@ func (r *rangeQuery) pushNode(node Node) {
 	r.nodeStack = append(r.nodeStack, node)
 }
 
-func (r *rangeQuery) AddValue(val string) {
+func (r *rangeQuery) addValue(val string) {
 	r.pushNode(TextNode{val})
 }
 
-func (r *rangeQuery) AddConstant(val string) {
+func (r *rangeQuery) addConstant(val string) {
 	r.pushNode(ConstantNode{val})
 }
 
-func (r *rangeQuery) AddNull() {
+func (r *rangeQuery) addNull() {
 	r.pushNode(NullNode{})
 }
 
-func (r *rangeQuery) AddBraceStart() {
+func (r *rangeQuery) addBraceStart() {
 	r.pushNode(BraceStartNode{})
 }
 
-func (r *rangeQuery) AddFuncArg() {
+func (r *rangeQuery) addFuncArg() {
 	var funcNode Node
 
 	paramNode := r.popNode()
@@ -37,7 +37,7 @@ func (r *rangeQuery) AddFuncArg() {
 	r.nodeStack[len(r.nodeStack)-1] = fn
 }
 
-func (r *rangeQuery) AddBraces() {
+func (r *rangeQuery) addBraces() {
 	right := r.popNode()
 	node := r.popNode()
 
@@ -60,34 +60,34 @@ func (r *rangeQuery) AddBraces() {
 	r.pushNode(BracesNode{node, left, right})
 }
 
-func (r *rangeQuery) AddGroupLookup() {
+func (r *rangeQuery) addGroupLookup() {
 	exprNode := r.popNode()
 	r.pushNode(GroupLookupNode{exprNode})
 }
 
-func (r *rangeQuery) AddGroupQuery() {
+func (r *rangeQuery) addGroupQuery() {
 	exprNode := r.popNode()
 	r.pushNode(GroupQueryNode{exprNode})
 }
 
-func (r *rangeQuery) AddLocalClusterLookup(key string) {
+func (r *rangeQuery) addLocalClusterLookup(key string) {
 	r.pushNode(LocalClusterLookupNode{key})
 }
 
-func (r *rangeQuery) AddFunction(name string) {
+func (r *rangeQuery) addFunction(name string) {
 	r.pushNode(FunctionNode{name, []Node{}})
 }
 
-func (r *rangeQuery) AddClusterLookup() {
+func (r *rangeQuery) addClusterLookup() {
 	exprNode := r.popNode()
 	r.pushNode(ClusterLookupNode{exprNode, ConstantNode{"CLUSTER"}})
 }
 
-func (r *rangeQuery) AddRegex(val string) {
+func (r *rangeQuery) addRegex(val string) {
 	r.pushNode(RegexNode{val})
 }
 
-func (r *rangeQuery) AddKeyLookup() {
+func (r *rangeQuery) addKeyLookup() {
 	keyNode := r.popNode()
 	// TODO: Error out if no lookup
 	if len(r.nodeStack) > 0 {
@@ -103,7 +103,7 @@ func (r *rangeQuery) AddKeyLookup() {
 	}
 }
 
-func (r *rangeQuery) AddOperator(typ operatorType) {
+func (r *rangeQuery) addOperator(typ operatorType) {
 	right := r.popNode()
 	left := r.popNode()
 

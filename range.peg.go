@@ -741,37 +741,37 @@ func (p *rangeQuery) Execute() {
 		case RulePegText:
 			begin, end = int(token.begin), int(token.end)
 		case RuleAction0:
-			p.AddBraceStart()
+			p.addBraceStart()
 		case RuleAction1:
-			p.AddOperator(operatorIntersect)
+			p.addOperator(operatorIntersect)
 		case RuleAction2:
-			p.AddOperator(operatorSubtract)
+			p.addOperator(operatorSubtract)
 		case RuleAction3:
-			p.AddOperator(operatorUnion)
+			p.addOperator(operatorUnion)
 		case RuleAction4:
-			p.AddBraces()
+			p.addBraces()
 		case RuleAction5:
-			p.AddGroupQuery()
+			p.addGroupQuery()
 		case RuleAction6:
-			p.AddClusterLookup()
+			p.addClusterLookup()
 		case RuleAction7:
-			p.AddGroupLookup()
+			p.addGroupLookup()
 		case RuleAction8:
-			p.AddKeyLookup()
+			p.addKeyLookup()
 		case RuleAction9:
-			p.AddLocalClusterLookup(buffer[begin:end])
+			p.addLocalClusterLookup(buffer[begin:end])
 		case RuleAction10:
-			p.AddFunction(buffer[begin:end])
+			p.addFunction(buffer[begin:end])
 		case RuleAction11:
-			p.AddFuncArg()
+			p.addFuncArg()
 		case RuleAction12:
-			p.AddFuncArg()
+			p.addFuncArg()
 		case RuleAction13:
-			p.AddRegex(buffer[begin:end])
+			p.addRegex(buffer[begin:end])
 		case RuleAction14:
-			p.AddValue(buffer[begin:end])
+			p.addValue(buffer[begin:end])
 		case RuleAction15:
-			p.AddConstant(buffer[begin:end])
+			p.addConstant(buffer[begin:end])
 
 		}
 	}
@@ -1734,7 +1734,7 @@ func (p *rangeQuery) Init() {
 			position, tokenIndex, depth = position109, tokenIndex109, depth109
 			return false
 		},
-		/* 20 Action0 <- <{ p.AddBraceStart() }> */
+		/* 20 Action0 <- <{ p.addBraceStart() }> */
 		func() bool {
 			{
 				add(RuleAction0, position)
@@ -1751,84 +1751,84 @@ func (p *rangeQuery) Init() {
 			}
 			return true
 		},
-		/* 22 Action1 <- <{ p.AddOperator(operatorIntersect) }> */
+		/* 22 Action1 <- <{ p.addOperator(operatorIntersect) }> */
 		func() bool {
 			{
 				add(RuleAction1, position)
 			}
 			return true
 		},
-		/* 23 Action2 <- <{ p.AddOperator(operatorSubtract) }> */
+		/* 23 Action2 <- <{ p.addOperator(operatorSubtract) }> */
 		func() bool {
 			{
 				add(RuleAction2, position)
 			}
 			return true
 		},
-		/* 24 Action3 <- <{ p.AddOperator(operatorUnion) }> */
+		/* 24 Action3 <- <{ p.addOperator(operatorUnion) }> */
 		func() bool {
 			{
 				add(RuleAction3, position)
 			}
 			return true
 		},
-		/* 25 Action4 <- <{ p.AddBraces() }> */
+		/* 25 Action4 <- <{ p.addBraces() }> */
 		func() bool {
 			{
 				add(RuleAction4, position)
 			}
 			return true
 		},
-		/* 26 Action5 <- <{ p.AddGroupQuery() }> */
+		/* 26 Action5 <- <{ p.addGroupQuery() }> */
 		func() bool {
 			{
 				add(RuleAction5, position)
 			}
 			return true
 		},
-		/* 27 Action6 <- <{ p.AddClusterLookup() }> */
+		/* 27 Action6 <- <{ p.addClusterLookup() }> */
 		func() bool {
 			{
 				add(RuleAction6, position)
 			}
 			return true
 		},
-		/* 28 Action7 <- <{ p.AddGroupLookup() }> */
+		/* 28 Action7 <- <{ p.addGroupLookup() }> */
 		func() bool {
 			{
 				add(RuleAction7, position)
 			}
 			return true
 		},
-		/* 29 Action8 <- <{ p.AddKeyLookup() }> */
+		/* 29 Action8 <- <{ p.addKeyLookup() }> */
 		func() bool {
 			{
 				add(RuleAction8, position)
 			}
 			return true
 		},
-		/* 30 Action9 <- <{ p.AddLocalClusterLookup(buffer[begin:end]) }> */
+		/* 30 Action9 <- <{ p.addLocalClusterLookup(buffer[begin:end]) }> */
 		func() bool {
 			{
 				add(RuleAction9, position)
 			}
 			return true
 		},
-		/* 31 Action10 <- <{ p.AddFunction(buffer[begin:end]) }> */
+		/* 31 Action10 <- <{ p.addFunction(buffer[begin:end]) }> */
 		func() bool {
 			{
 				add(RuleAction10, position)
 			}
 			return true
 		},
-		/* 32 Action11 <- <{ p.AddFuncArg() }> */
+		/* 32 Action11 <- <{ p.addFuncArg() }> */
 		func() bool {
 			{
 				add(RuleAction11, position)
 			}
 			return true
 		},
-		/* 33 Action12 <- <{ p.AddFuncArg() }> */
+		/* 33 Action12 <- <{ p.addFuncArg() }> */
 		func() bool {
 			{
 				add(RuleAction12, position)
@@ -1836,21 +1836,21 @@ func (p *rangeQuery) Init() {
 			return true
 		},
 		nil,
-		/* 35 Action13 <- <{ p.AddRegex(buffer[begin:end]) }> */
+		/* 35 Action13 <- <{ p.addRegex(buffer[begin:end]) }> */
 		func() bool {
 			{
 				add(RuleAction13, position)
 			}
 			return true
 		},
-		/* 36 Action14 <- <{ p.AddValue(buffer[begin:end]) }> */
+		/* 36 Action14 <- <{ p.addValue(buffer[begin:end]) }> */
 		func() bool {
 			{
 				add(RuleAction14, position)
 			}
 			return true
 		},
-		/* 37 Action15 <- <{ p.AddConstant(buffer[begin:end]) }> */
+		/* 37 Action15 <- <{ p.addConstant(buffer[begin:end]) }> */
 		func() bool {
 			{
 				add(RuleAction15, position)
