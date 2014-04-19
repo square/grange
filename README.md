@@ -1,4 +1,4 @@
-grange
+Grange
 ======
 
 Grange implements a modern subset of the range query language. It is an
