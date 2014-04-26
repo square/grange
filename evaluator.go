@@ -219,8 +219,8 @@ func (state *State) ResetCache() {
 //
 // The size of the returned result is capped by MaxResults.
 //
-// BUG: This method is not thread-safe, since it could write to its internal cache
-// and this is unsynchronized.
+// This method is only thread-safe if PrimeCache() has previously been called
+// on the state.
 func (state *State) Query(input string) (Result, error) {
 	if len(input) > MaxQuerySize {
 		return NewResult(),
