@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 
 	"gopkg.in/deckarep/v1/golang-set"
@@ -124,6 +125,39 @@ func (state *State) Query(input string) (Result, error) {
 
 	context := newContext()
 	return evalRangeWithContext(input, state, &context)
+}
+
+// Normalizes a result set into a minimal range expression, such as
+// +{foo,bar}.example.com+.
+func Compress(nodes *[]string) string {
+	noDomain := []string{}
+	domains := map[string][]string{}
+	for _, node := range *nodes {
+		tokens := strings.SplitN(node, ".", 2)
+		if len(tokens) == 2 {
+			domains[tokens[1]] = append(domains[tokens[1]], tokens[0])
+		} else {
+			noDomain = append(noDomain, node)
+		}
+	}
+	sort.Strings(noDomain)
+	result := noDomain
+	var domainKeys = []string{}
+	for domain, _ := range domains {
+		domainKeys = append(domainKeys, domain)
+	}
+	sort.Strings(domainKeys)
+
+	for _, domain := range domainKeys {
+		domainNodes := domains[domain]
+		sort.Strings(domainNodes)
+		joined := strings.Join(domainNodes, ",")
+		if len(domainNodes) > 1 {
+			joined = "{" + joined + "}"
+		}
+		result = append(result, joined+"."+domain)
+	}
+	return strings.Join(result, ",")
 }
 
 type tooManyResults struct{}
