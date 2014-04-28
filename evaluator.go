@@ -66,6 +66,7 @@ Syntax
     clusters(h1) - returns all clusters for which the h1 is present in the
                    CLUSTER key. Parameter can be any range expression.
     has(KEY;val) - returns all clusters with SOMEKEY matching value
+    count(EXPR)  - returns the number of results returned by EXPR.
     q(x://blah)  - quote a constant value, the parameter will be returned as
                    is and not evaluated as a range expression. Useful for
                    storing metadata in clusters.
@@ -497,6 +498,11 @@ func (n nodeGroupQuery) visit(state *State, context *evalContext) error {
 
 func (n nodeFunction) visit(state *State, context *evalContext) error {
 	switch n.name {
+	case "count":
+		valueContext := newContext()
+		n.params[0].(evalNode).visit(state, &valueContext)
+
+		context.addResult(strconv.Itoa(valueContext.currentResult.Cardinality()))
 	case "has":
 		// TODO: Error handling when no or multiple results
 		keyContext := newContext()
