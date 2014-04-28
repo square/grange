@@ -62,10 +62,10 @@ Syntax
                    clusters, looks up values from SOMEKEY in the current
                    cluster. When used in a group value, expands to the group
                    named SOMEKEY.
-    ?host1       - returns all groups that contain host1
+    ?host1       - returns all groups that contain host1.
     clusters(h1) - returns all clusters for which the h1 is present in the
                    CLUSTER key. Parameter can be any range expression.
-    has(KEY;val) - returns all clusters with SOMEKEY matching value
+    has(KEY;val) - returns all clusters with SOMEKEY matching value.
     count(EXPR)  - returns the number of results returned by EXPR.
     q(x://blah)  - quote a constant value, the parameter will be returned as
                    is and not evaluated as a range expression. Useful for
