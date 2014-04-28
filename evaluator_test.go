@@ -167,6 +167,14 @@ func TestMatchNoContext(t *testing.T) {
 	testEval(t, NewResult("ab"), "/b/", singleGroup("b", "ab", "c"))
 }
 
+func TestMatchRegexp(t *testing.T) {
+	testEval(t, NewResult("ab"), "/^.b/", singleGroup("b", "ab", "cab"))
+}
+
+func TestInvalidRegexp(t *testing.T) {
+	testError2(t, "error parsing regexp: missing argument to repetition operator: `+`", "/+/", emptyState())
+}
+
 func TestMatchEasy(t *testing.T) {
 	testEval(t, NewResult("ab", "ba", "abc"), "%cluster & /b/",
 		singleCluster("cluster", Cluster{
