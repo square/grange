@@ -203,6 +203,10 @@ func TestCombineWithBraces(t *testing.T) {
 	testEval(t, NewResult("b"), "b - %{a}", emptyState())
 }
 
+func TestGroupLookupAndSubtractiong(t *testing.T) {
+	testEval(t, NewResult("a"), "{a} - b", emptyState())
+}
+
 func TestInvalidLex(t *testing.T) {
 	testError(t, "No closing / for match", "/")
 }
@@ -327,7 +331,7 @@ func testEval(t *testing.T, expected Result, query string, state *State) {
 	actual, err := state.Query(query)
 
 	if err != nil {
-		t.Errorf("Expected result, got error: %s", err)
+		t.Errorf("%s Expected result, got error: %s", query, err)
 	} else if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("EvalRange\n got: %v\nwant: %v", actual, expected)
 	}

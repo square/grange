@@ -39,8 +39,9 @@ function <- literal { p.addFunction(buffer[begin:end]) } '(' funcargs ')'
 funcargs <- rangeexpr { p.addFuncArg() } ';' funcargs
           / rangeexpr { p.addFuncArg() }
 
-regex   <- '/' < (!'/' .)* > '/' { p.addRegex(buffer[begin:end]) }
-literal <- <[[a-z0-9-_]]+>
-value   <- <[[a-z0-9-_.]]+> { p.addValue(buffer[begin:end]) }
-space   <- ' '*
-q       <- 'q(' <(!')' .)*> ')' { p.addConstant(buffer[begin:end]) }
+regex      <- '/' < (!'/' .)* > '/' { p.addRegex(buffer[begin:end]) }
+literal    <- < leaderChar [[a-z0-9-_]]* >
+value      <- < leaderChar [[a-z0-9-_.]]* > { p.addValue(buffer[begin:end]) }
+leaderChar <- [[a-z0-9._]] # Do not match "-" so not to confuse with exclude rule
+space      <- ' '*
+q          <- 'q(' <(!')' .)*> ')' { p.addConstant(buffer[begin:end]) }
