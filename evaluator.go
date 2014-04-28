@@ -48,9 +48,9 @@ Syntax
     a{b,c}d      - brace expansion, works just like your shell.
     (a,b) & a    - returns intersection of boths sides.
     (a,b) - a    - returns left side minus right side.
-    /abc/        - regex match. When used on the right side of an operator,
-                   filters the left side values using the regex. When used by
-                   itself, matches all group values.
+    /abc/        - regex match using RE2 semantics. When used on the right side
+                   of an operator, filters the left side values using the
+                   regex.  When used by itself, matches all group values.
     %dc1         - cluster lookup, returns the values at CLUSTER key in "dc1"
                    cluster.
     %dc1:KEYS    - returns all available keys for a cluster.
@@ -89,6 +89,10 @@ mis-aligned with the goals of this library.
 
     - ^ "admin" operator is not supported. Not a useful concept anymore.
     - # "hash" operator is not supported. Normal function calls are sufficient.
+    - Uses RE2 regular expressions rather than PCRE. RE2 is not as fully
+      featured, but guarantees that searches run in time linear in the size of
+      the input.  Regexes should not be used often anyway: prefer explicit
+      metadata.
     - Non-deterministic functions, in particular functions that make network
       calls. This library aims to provide fast query performance, which is much
       harder when dealing with non-determinism. Clients who wish to emulate
@@ -103,7 +107,6 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 
 	"gopkg.in/deckarep/v1/golang-set"
 )
@@ -540,8 +543,14 @@ func (n nodeRegexp) visit(state *State, context *evalContext) error {
 		context.workingResult = &subContext.currentResult
 	}
 
+	r, err := regexp.Compile(n.val)
+
+	if err != nil {
+		return err
+	}
+
 	for x := range context.workingResult.Iter() {
-		if strings.Contains(x.(string), n.val) {
+		if r.MatchString(x.(string)) {
 			context.addResult(x.(string))
 		}
 	}
