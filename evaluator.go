@@ -67,6 +67,7 @@ Syntax
                    CLUSTER key. Parameter can be any range expression.
     has(KEY;val) - returns all clusters with SOMEKEY matching value.
     count(EXPR)  - returns the number of results returned by EXPR.
+    allclusters() - returns the names of all clusters
     q(x://blah)  - quote a constant value, the parameter will be returned as
                    is and not evaluated as a range expression. Useful for
                    storing metadata in clusters.
@@ -498,6 +499,10 @@ func (n nodeGroupQuery) visit(state *State, context *evalContext) error {
 
 func (n nodeFunction) visit(state *State, context *evalContext) error {
 	switch n.name {
+	case "allclusters":
+		for clusterKey, _ := range state.clusters {
+			context.addResult(clusterKey)
+		}
 	case "count":
 		valueContext := newContext()
 		n.params[0].(evalNode).visit(state, &valueContext)
