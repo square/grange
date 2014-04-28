@@ -42,35 +42,35 @@ https://github.com/xaviershay/grange-server
 
 Syntax
 
-    host1        - value constant, returns itself.
-    host1,host2  - union, concatenates both sides.
-    host1..3     - numeric expansion.
-    a{b,c}d      - brace expansion, works just like your shell.
-    (a,b) & a    - returns intersection of boths sides.
-    (a,b) - a    - returns left side minus right side.
-    /abc/        - regex match using RE2 semantics. When used on the right side
-                   of an operator, filters the left side values using the
-                   regex.  When used by itself, matches all group values.
-    %dc1         - cluster lookup, returns the values at CLUSTER key in "dc1"
-                   cluster.
-    %dc1:KEYS    - returns all available keys for a cluster.
-    %dc1:SOMEKEY - returns values at SOMEKEY key.
-    %dc1:{A,B}   - returns values at both A and B key. Query inside braces can
-                   be any range expression.
-    @dc1         - group lookup, returns values in "dc1" group.
-    $SOMEKEY     - local lookup, only valid inside cluster or group values. For
-                   clusters, looks up values from SOMEKEY in the current
-                   cluster. When used in a group value, expands to the group
-                   named SOMEKEY.
-    ?host1       - returns all groups that contain host1.
-    clusters(h1) - returns all clusters for which the h1 is present in the
-                   CLUSTER key. Parameter can be any range expression.
-    has(KEY;val) - returns all clusters with SOMEKEY matching value.
-    count(EXPR)  - returns the number of results returned by EXPR.
+    host1         - value constant, returns itself.
+    host1,host2   - union, concatenates both sides.
+    host1..3      - numeric expansion.
+    a{b,c}d       - brace expansion, works just like your shell.
+    (a,b) & a     - returns intersection of boths sides.
+    (a,b) - a     - returns left side minus right side.
+    /abc/         - regex match using RE2 semantics. When used on the right
+                    side of an operator, filters the left side values using the
+                    regex.  When used by itself, matches all group values.
+    %dc1          - cluster lookup, returns the values at CLUSTER key in "dc1"
+                    cluster.
+    %dc1:KEYS     - returns all available keys for a cluster.
+    %dc1:SOMEKEY  - returns values at SOMEKEY key.
+    %dc1:{A,B}    - returns values at both A and B key. Query inside braces can
+                    be any range expression.
+    @dc1          - group lookup, returns values in "dc1" group.
+    $SOMEKEY      - local lookup, only valid inside cluster or group values.
+                    For clusters, looks up values from SOMEKEY in the current
+                    cluster. When used in a group value, expands to the group
+                    named SOMEKEY.
+    ?host1        - returns all groups that contain host1.
+    clusters(h1)  - returns all clusters for which the h1 is present in the
+                    CLUSTER key. Parameter can be any range expression.
+    has(KEY;val)  - returns all clusters with SOMEKEY matching value.
+    count(EXPR)   - returns the number of results returned by EXPR.
     allclusters() - returns the names of all clusters
-    q(x://blah)  - quote a constant value, the parameter will be returned as
-                   is and not evaluated as a range expression. Useful for
-                   storing metadata in clusters.
+    q(x://blah)   - quote a constant value, the parameter will be returned as
+                    is and not evaluated as a range expression. Useful for
+                    storing metadata in clusters.
 
 All of the above can be combined to form highly expressive queries.
 
