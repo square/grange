@@ -19,12 +19,11 @@ import (
 // before querying, otherwise initial queries will likely take longer than
 // later ones as the cache is built up incrementally.
 type State struct {
-	clusters map[string]Cluster
-	groups   Cluster
+	clusters       map[string]Cluster
+	defaultCluster string
 
 	// Populated lazily as groups are evaluated. They won't change unless state
 	// changes.
-	groupCache   map[string]*Result
 	clusterCache map[string]map[string]*Result
 }
 
@@ -49,6 +48,10 @@ var (
 	// short-circuited once this many results have been gathered. No error will
 	// be returned.
 	MaxResults = 10000
+
+	// The default cluster for new states, used by @ and ? syntax. Can be changed
+	// per-state using SetDefaultCluster.
+	DefaultCluster = "GROUPS"
 )
 
 // Clusters is a getter for all clusters that have been added to the state.
@@ -58,19 +61,12 @@ func (s *State) Clusters() map[string]Cluster {
 	return s.clusters
 }
 
-// Groups is a getter for all groups that have been added to the state.
-// There isn't really a good reason to use this other than for debugging
-// purposes.
-func (s *State) Groups() Cluster {
-	return s.groups
-}
-
 // NewState creates a new state to be passed into EvalRange. This will need to
 // be used at least once before you can query anything.
 func NewState() State {
 	state := State{
-		clusters: map[string]Cluster{},
-		groups:   Cluster{},
+		clusters:       map[string]Cluster{},
+		defaultCluster: DefaultCluster,
 	}
 	state.ResetCache()
 	return state
@@ -82,16 +78,15 @@ func NewResult(args ...interface{}) Result {
 	return Result{mapset.NewSetFromSlice(args)}
 }
 
-// SetGroups overrides any existing groups and resets the cache.
-func (state *State) SetGroups(c Cluster) {
-	state.groups = c
-	state.ResetCache()
-}
-
 // AddCluster adds a new cluster to the state and resets the cache.
 func (state *State) AddCluster(name string, c Cluster) {
 	state.clusters[name] = c
 	state.ResetCache()
+}
+
+// Changes the default cluster for the state.
+func (state *State) SetDefaultCluster(name string) {
+	state.defaultCluster = name
 }
 
 // PrimeCache traverses over the entire state to expand all values and store
@@ -109,7 +104,6 @@ func (state *State) PrimeCache() {
 // already calls this when necessary, so you shouldn't really have a need to
 // call this.
 func (state *State) ResetCache() {
-	state.groupCache = map[string]*Result{}
 	state.clusterCache = map[string]map[string]*Result{}
 }
 
@@ -226,10 +220,6 @@ func (n nodeBraces) visit(state *State, context *evalContext) error {
 }
 
 func (n nodeLocalClusterLookup) visit(state *State, context *evalContext) error {
-	if context.currentClusterName == "" {
-		return groupLookup(state, context, n.key)
-	}
-
 	return clusterLookup(state, context, n.key)
 }
 
@@ -256,17 +246,6 @@ func (n nodeClusterLookup) visit(state *State, context *evalContext) error {
 				return evalErr
 			}
 		}
-	}
-
-	return nil
-}
-
-func (n nodeGroupLookup) visit(state *State, context *evalContext) error {
-	subContext := context.sub()
-	n.node.(evalNode).visit(state, &subContext) // TODO: Error handle
-
-	for key := range subContext.resultIter() {
-		groupLookup(state, context, key.(string))
 	}
 
 	return nil
@@ -376,7 +355,7 @@ func (n nodeGroupQuery) visit(state *State, context *evalContext) error {
 	n.node.(evalNode).visit(state, &subContext)
 	lookingFor := subContext.currentResult
 
-	for groupName, group := range state.groups {
+	for groupName, group := range state.clusters[state.defaultCluster] {
 		groupContext := newContext()
 		for _, value := range group {
 			// TODO: Handle errors
@@ -471,37 +450,15 @@ func (n nodeNull) visit(state *State, context *evalContext) error {
 
 func (state *State) allValues(context *evalContext) error {
 	// Expand everything into the set
-	for _, v := range state.groups {
-		for _, subv := range v {
-			// TODO: Handle errors
-			evalRangeInplace(subv, state, context)
-		}
-	}
-
-	return nil
-}
-
-func groupLookup(state *State, context *evalContext, key string) error {
-	if state.groupCache[key] != nil {
-		for x := range state.groupCache[key].Iter() {
-			context.addResult(x.(string))
-		}
-		return nil
-	}
-
-	clusterExp := state.groups[key]
-
-	for _, value := range clusterExp {
-		// TODO: Return errors correctly
-		evalRangeInplace(value, state, context)
-	}
-	state.groupCache[key] = &context.currentResult
-	return nil
+	return evalRangeInplace("@{%"+state.defaultCluster+":KEYS}", state, context)
 }
 
 func clusterLookup(state *State, context *evalContext, key string) error {
 	var evalErr error
 	clusterName := context.currentClusterName
+	if clusterName == "" {
+		clusterName = state.defaultCluster
+	}
 	cluster := state.clusters[clusterName]
 
 	if key == "KEYS" {
