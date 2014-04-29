@@ -6,7 +6,7 @@ datacenters.
 
 Basics
 
-A range query operates on a state containing clusters and groups.
+A range query operates on a state containing clusters.
 
     state := grange.NewState()
     state.AddCluster("a", Cluster{
@@ -17,18 +17,11 @@ A range query operates on a state containing clusters and groups.
     result, err = state.Query("%a:KEYS") // "CLUSTER", "TYPE"
     result, err = state.Query("%a:TYPE") // "letters"
 
-Groups are simpler than clusters: each group only has a single value array. All
-CLUSTER values should be present in at least one group. Traditionally, groups
-are used to drive a config management system.
+Range also allows for a default cluster (traditionally named GROUPS), that can
+be accessed with some shortcut syntax, documented below.
 
-    state := grange.NewState()
-    state.SetGroups(Cluster{
-      "dc1": []string{"host1", "host2"},
-      "dc2": []string{"host3", "host4"},
-    })
-    result, err := state.Query("@dc1")  // "host1", "host2"
-
-Values can also be range expressions, so that clusters and groups can be defined in terms of each other ("self-referential").
+Values can also be range expressions, so that clusters can be defined in terms
+of each other ("self-referential").
 
     state := grange.NewState()
     state.SetGroups(Cluster{"dc1": []string{"host1", "host2"})
@@ -57,12 +50,11 @@ Syntax
     %dc1:SOMEKEY  - returns values at SOMEKEY key.
     %dc1:{A,B}    - returns values at both A and B key. Query inside braces can
                     be any range expression.
-    @dc1          - group lookup, returns values in "dc1" group.
-    $SOMEKEY      - local lookup, only valid inside cluster or group values.
-                    For clusters, looks up values from SOMEKEY in the current
-                    cluster. When used in a group value, expands to the group
-                    named SOMEKEY.
-    ?host1        - returns all groups that contain host1.
+    @dc1          - key lookup in default cluster, equivalent to %GROUPS:dc1.
+    $SOMEKEY      - Looks up values from SOMEKEY in the current cluster when
+                    used as a cluster value. When used at top-level, the
+                    default cluster is used.
+    ?host1        - returns all keys in the default cluster that contain host1.
     clusters(h1)  - returns all clusters for which the h1 is present in the
                     CLUSTER key. Parameter can be any range expression.
     has(KEY;val)  - returns all clusters with SOMEKEY matching value.
