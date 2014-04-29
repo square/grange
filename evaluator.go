@@ -226,10 +226,6 @@ func (n nodeBraces) visit(state *State, context *evalContext) error {
 }
 
 func (n nodeLocalClusterLookup) visit(state *State, context *evalContext) error {
-	if context.currentClusterName == "" {
-		return groupLookup(state, context, n.key)
-	}
-
 	return clusterLookup(state, context, n.key)
 }
 
@@ -376,8 +372,9 @@ func (n nodeGroupQuery) visit(state *State, context *evalContext) error {
 	n.node.(evalNode).visit(state, &subContext)
 	lookingFor := subContext.currentResult
 
-	for groupName, group := range state.groups {
+	for groupName, group := range state.clusters["GROUPS"] {
 		groupContext := newContext()
+		groupContext.currentClusterName = "GROUPS"
 		for _, value := range group {
 			// TODO: Handle errors
 			evalRangeInplace(value, state, &groupContext)
@@ -471,7 +468,9 @@ func (n nodeNull) visit(state *State, context *evalContext) error {
 
 func (state *State) allValues(context *evalContext) error {
 	// Expand everything into the set
-	for _, v := range state.groups {
+	context.currentClusterName = "GROUPS"
+
+	for _, v := range state.clusters["GROUPS"] {
 		for _, subv := range v {
 			// TODO: Handle errors
 			evalRangeInplace(subv, state, context)
