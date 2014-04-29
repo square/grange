@@ -39,10 +39,6 @@ type nodeLocalClusterLookup struct {
 	key string
 }
 
-type nodeGroupLookup struct {
-	node parserNode
-}
-
 type nodeGroupQuery struct {
 	node parserNode
 }
@@ -98,10 +94,6 @@ func (n nodeClusterLookup) String() string {
 		}
 	}
 	return fmt.Sprintf("%%{%s}:%s", n.node, n.key)
-}
-
-func (n nodeGroupLookup) String() string {
-	return fmt.Sprintf("@%s", n.node)
 }
 
 func (n nodeGroupQuery) String() string {

@@ -69,7 +69,7 @@ func (r *rangeQuery) addBraces() {
 
 func (r *rangeQuery) addGroupLookup() {
 	exprNode := r.popNode()
-	r.pushNode(nodeGroupLookup{exprNode})
+	r.pushNode(nodeClusterLookup{nodeConstant{"GROUPS"}, exprNode})
 }
 
 func (r *rangeQuery) addGroupQuery() {

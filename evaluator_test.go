@@ -163,6 +163,10 @@ func TestClusterLookupDedup(t *testing.T) {
 	}))
 }
 
+func TestGroupsIsCluster(t *testing.T) {
+	testEval(t, NewResult("a"), "%GROUPS:KEYS", singleGroup("a"))
+}
+
 func TestMatchNoContext(t *testing.T) {
 	testEval(t, NewResult("ab"), "/b/", singleGroup("b", "ab", "c"))
 }
@@ -355,15 +359,13 @@ func singleCluster(name string, c Cluster) *State {
 }
 
 func singleGroup(name string, members ...string) *State {
-	state := NewState()
-	state.groups[name] = members
-	return &state
+	return singleCluster("GROUPS", Cluster{
+		name: members,
+	})
 }
 
 func multiGroup(c Cluster) *State {
-	state := NewState()
-	state.groups = c
-	return &state
+	return singleCluster("GROUPS", c)
 }
 
 func multiCluster(cs map[string]Cluster) *State {
