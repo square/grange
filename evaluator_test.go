@@ -253,29 +253,6 @@ func TestAllClusters(t *testing.T) {
 	testEval(t, NewResult("a"), "allclusters()", singleCluster("a", Cluster{}))
 }
 
-func TestBrackets(t *testing.T) {
-	testEval(t, NewResult("a"), "(a)", emptyState())
-	testEval(t, NewResult("a", "b"), "(a,b)", emptyState())
-	testEval(t, NewResult("b"), "(a,b)-(a,c)", emptyState())
-}
-
-func TestNumericRange(t *testing.T) {
-	testEval(t, NewResult("n01", "n02", "n03"), "n01..n03", emptyState())
-	testEval(t, NewResult("n10", "n11"), "n10..1", emptyState())
-	testEval(t, NewResult("n01", "n02", "n03"), "n01..n3", emptyState())
-	testEval(t, NewResult("1", "2", "3"), "1..3", emptyState())
-	testEval(t, NewResult("n1", "n2", "n3"), "n1..3", emptyState())
-	testEval(t, NewResult("n1", "n2", "n3"), "n1..n3", emptyState())
-	testEval(t, NewResult(), "n2..n1", emptyState())
-	testEval(t, NewResult("n9", "n10", "n11"), "n9..11", emptyState())
-	testEval(t, NewResult("n1", "n2", "n3"), "n1..n03", emptyState())
-	testEval(t, NewResult("n1..3"), "q(n1..3)", emptyState())
-	testEval(t, NewResult("n10", "n11"), "n10..11", emptyState())
-
-	// Different from crange, but shouldn't be relying on this anyway
-	testEval(t, NewResult("n1an3..4", "n2an3..4"), "n1..2an3..4", emptyState())
-}
-
 func TestLengthError(t *testing.T) {
 	longString := strings.Repeat("a", MaxQuerySize)
 	testEval(t, NewResult(longString), longString, emptyState())
