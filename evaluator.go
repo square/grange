@@ -165,7 +165,7 @@ func evalRangeWithContext(input string, state *State, context *evalContext) (Res
 func evalRangeInplace(input string, state *State, context *evalContext) (err error) {
 	node, parseError := parseRange(input)
 	if parseError != nil {
-		return errors.New("Could not parse query")
+		return errors.New("Could not parse query: " + input)
 	}
 
 	defer func() {

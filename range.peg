@@ -16,6 +16,7 @@ rangeexpr <- space
     / localkey
     / regex
     / value
+    / brackets
     / { p.addBraceStart() } braces
     / null)
 
@@ -25,7 +26,8 @@ exclude     <- '-' rangeexpr  { p.addOperator(operatorSubtract) } combinators?
 union       <- ',' rangeexpr  { p.addOperator(operatorUnion) } combinators?
 
 # See https://github.com/pointlander/peg/issues/21 for context
-braces  <- '{' rangeexpr combinators? '}' rangeexpr? { p.addBraces() }
+braces   <- '{' rangeexpr combinators? '}' rangeexpr? { p.addBraces() }
+brackets <- '(' rangeexpr combinators? ')'
 
 groupq  <- '?' rangeexpr { p.addGroupQuery() }
 cluster <- '%' rangeexpr { p.addClusterLookup() } key?

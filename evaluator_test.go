@@ -251,7 +251,12 @@ func TestCount(t *testing.T) {
 
 func TestAllClusters(t *testing.T) {
 	testEval(t, NewResult("a"), "allclusters()", singleCluster("a", Cluster{}))
-	testEval(t, NewResult(), "%{allclusters()}", singleCluster("a", Cluster{}))
+}
+
+func TestBrackets(t *testing.T) {
+	testEval(t, NewResult("a"), "(a)", emptyState())
+	testEval(t, NewResult("a", "b"), "(a,b)", emptyState())
+	testEval(t, NewResult("b"), "(a,b)-(a,c)", emptyState())
 }
 
 func TestNumericRange(t *testing.T) {
