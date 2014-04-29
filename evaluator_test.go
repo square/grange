@@ -238,6 +238,17 @@ func TestQueryGroups(t *testing.T) {
 	}))
 }
 
+func TestCount(t *testing.T) {
+	testEval(t, NewResult("1"), "count(a)", emptyState())
+	testEval(t, NewResult("2"), "count({a,b,a})", emptyState())
+	// TODO: why does this not parse
+	// testEval(t, NewResult("2"), "count(a,b,a)", emptyState())
+}
+
+func TestAllClusters(t *testing.T) {
+	testEval(t, NewResult("a"), "allclusters()", singleCluster("a", Cluster{}))
+}
+
 func TestNumericRange(t *testing.T) {
 	testEval(t, NewResult("n01", "n02", "n03"), "n01..n03", emptyState())
 	testEval(t, NewResult("n10", "n11"), "n10..1", emptyState())

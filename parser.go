@@ -31,10 +31,17 @@ func (r *rangeQuery) addFuncArg() {
 	var funcNode parserNode
 
 	paramNode := r.popNode()
-	funcNode = r.nodeStack[len(r.nodeStack)-1]
-	fn := funcNode.(nodeFunction)
-	fn.params = append(fn.params, paramNode)
-	r.nodeStack[len(r.nodeStack)-1] = fn
+	switch paramNode.(type) {
+	case nodeFunction:
+		// No arguments. This is kind of terrible, probably a better way to do
+		// this.
+		r.pushNode(paramNode)
+	default:
+		funcNode = r.nodeStack[len(r.nodeStack)-1]
+		fn := funcNode.(nodeFunction)
+		fn.params = append(fn.params, paramNode)
+		r.nodeStack[len(r.nodeStack)-1] = fn
+	}
 }
 
 func (r *rangeQuery) addBraces() {
