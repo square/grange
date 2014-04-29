@@ -450,14 +450,7 @@ func (n nodeNull) visit(state *State, context *evalContext) error {
 
 func (state *State) allValues(context *evalContext) error {
 	// Expand everything into the set
-	for _, v := range state.clusters[state.defaultCluster] {
-		for _, subv := range v {
-			// TODO: Handle errors
-			evalRangeInplace(subv, state, context)
-		}
-	}
-
-	return nil
+	return evalRangeInplace("@{%"+state.defaultCluster+":KEYS}", state, context)
 }
 
 func clusterLookup(state *State, context *evalContext, key string) error {
