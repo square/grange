@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 
 	"gopkg.in/deckarep/v1/golang-set"
 )
@@ -129,15 +130,15 @@ func (state *State) Query(input string) (Result, error) {
 
 // Normalizes a result set into a minimal range expression, such as
 // +{foo,bar}.example.com+.
-func Compress(nodes *[]string) string {
+func Compress(nodes *Result) string {
 	noDomain := []string{}
 	domains := map[string][]string{}
-	for _, node := range *nodes {
-		tokens := strings.SplitN(node, ".", 2)
+	for node := range nodes.Iter() {
+		tokens := strings.SplitN(node.(string), ".", 2)
 		if len(tokens) == 2 {
 			domains[tokens[1]] = append(domains[tokens[1]], tokens[0])
 		} else {
-			noDomain = append(noDomain, node)
+			noDomain = append(noDomain, node.(string))
 		}
 	}
 	sort.Strings(noDomain)
