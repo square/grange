@@ -24,7 +24,6 @@ Values can also be range expressions, so that clusters can be defined in terms
 of each other ("self-referential").
 
     state := grange.NewState()
-    state.SetGroups(Cluster{"dc1": []string{"host1", "host2"})
     state.AddCluster("down", Cluster{ CLUSTER: []string{"host1"})
     state.AddCluster("dc1",  Cluster{ CLUSTER: []string{"@dc1 - %down"})
 
@@ -43,7 +42,8 @@ Syntax
     (a,b) - a     - returns left side minus right side.
     /abc/         - regex match using RE2 semantics. When used on the right
                     side of an operator, filters the left side values using the
-                    regex.  When used by itself, matches all group values.
+                    regex.  When used by itself, matches all values in the
+                    default cluster..
     %dc1          - cluster lookup, returns the values at CLUSTER key in "dc1"
                     cluster.
     %dc1:KEYS     - returns all available keys for a cluster.
