@@ -93,11 +93,15 @@ func (state *State) SetDefaultCluster(name string) {
 // them in the state's cache. Subsequent queries will be able to use the cache
 // immediately, rather than having to build it up incrementally.
 func (state *State) PrimeCache() {
-	// traverse and expand every cluster, adding them to cache.
-	state.Query("clusters(a)")
-
-	// traverse and expand every group
-	state.Query("//")
+	// TODO: See if this is faster if parrelized (need to add coordination to
+	// cache).
+	for _, cluster := range state.clusters {
+		for _, values := range cluster {
+			for _, value := range values {
+				state.Query(value)
+			}
+		}
+	}
 }
 
 // ResetCache clears cached expansions. The public API for modifying state
