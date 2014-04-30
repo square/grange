@@ -49,6 +49,12 @@ var (
 	// be returned.
 	MaxResults = 10000
 
+	// Maximum number of subqueries that will be evaluated, including evaluation
+	// of cluster values. If this is exceeded, an error will be returned.
+	// Primarily useful for aborting cycles, but also can shortcut really
+	// expensive queries. This should not be exceeded in normal operation.
+	MaxQueryDepth = 100
+
 	// The default cluster for new states, used by @ and ? syntax. Can be changed
 	// per-state using SetDefaultCluster.
 	DefaultCluster = "GROUPS"
@@ -136,17 +142,11 @@ type evalContext struct {
 	currentClusterName string
 	currentResult      Result
 	workingResult      *Result
+	depth              int
 }
 
 func newContext() evalContext {
 	return evalContext{currentResult: NewResult()}
-}
-
-func newClusterContext(clusterName string) evalContext {
-	return evalContext{
-		currentClusterName: clusterName,
-		currentResult:      NewResult(),
-	}
 }
 
 func parseRange(input string) (parserNode, error) {
@@ -167,6 +167,9 @@ func evalRangeWithContext(input string, state *State, context *evalContext) (Res
 
 // Useful internally so that results do not need to be copied all over the place
 func evalRangeInplace(input string, state *State, context *evalContext) (err error) {
+	if context.depth > MaxQueryDepth {
+		return errors.New("Query exceeded maximum recursion limit")
+	}
 	node, parseError := parseRange(input)
 	if parseError != nil {
 		return errors.New("Could not parse query: " + input)
@@ -194,9 +197,9 @@ func (c evalContext) hasResults() bool {
 }
 
 func (n nodeBraces) visit(state *State, context *evalContext) error {
-	leftContext := newContext()
-	rightContext := newContext()
-	middleContext := newContext()
+	leftContext := context.sub()
+	rightContext := context.sub()
+	middleContext := context.sub()
 	// TODO: Handle errors
 	n.left.(evalNode).visit(state, &leftContext)
 	n.node.(evalNode).visit(state, &middleContext)
@@ -230,13 +233,13 @@ func (n nodeLocalClusterLookup) visit(state *State, context *evalContext) error 
 func (n nodeClusterLookup) visit(state *State, context *evalContext) error {
 	var evalErr error
 
-	subContext := newContext()
+	subContext := context.sub()
 	evalErr = n.node.(evalNode).visit(state, &subContext)
 	if evalErr != nil {
 		return evalErr
 	}
 
-	keyContext := newContext()
+	keyContext := context.sub()
 	evalErr = n.key.(evalNode).visit(state, &keyContext)
 	if evalErr != nil {
 		return evalErr
@@ -256,7 +259,16 @@ func (n nodeClusterLookup) visit(state *State, context *evalContext) error {
 }
 
 func (c evalContext) sub() evalContext {
-	return newClusterContext(c.currentClusterName)
+	ret := newContext()
+	ret.currentClusterName = c.currentClusterName
+	ret.depth = c.depth + 1
+	return ret
+}
+
+func (c evalContext) subCluster(clusterName string) evalContext {
+	ret := c.sub()
+	ret.currentClusterName = clusterName
+	return ret
 }
 
 func (n nodeOperator) visit(state *State, context *evalContext) error {
@@ -354,13 +366,13 @@ func (n nodeText) visit(state *State, context *evalContext) error {
 }
 
 func (n nodeGroupQuery) visit(state *State, context *evalContext) error {
-	subContext := newContext()
+	subContext := context.sub()
 	// TODO: Handle errors
 	n.node.(evalNode).visit(state, &subContext)
 	lookingFor := subContext.currentResult
 
 	for groupName, group := range state.clusters[state.defaultCluster] {
-		groupContext := newContext()
+		groupContext := context.sub()
 		for _, value := range group {
 			// TODO: Handle errors
 			evalRangeInplace(value, state, &groupContext)
@@ -383,14 +395,14 @@ func (n nodeFunction) visit(state *State, context *evalContext) error {
 			context.addResult(clusterKey)
 		}
 	case "count":
-		valueContext := newContext()
+		valueContext := context.sub()
 		n.params[0].(evalNode).visit(state, &valueContext)
 
 		context.addResult(strconv.Itoa(valueContext.currentResult.Cardinality()))
 	case "has":
 		// TODO: Error handling when no or multiple results
-		keyContext := newContext()
-		valueContext := newContext()
+		keyContext := context.sub()
+		valueContext := context.sub()
 		n.params[0].(evalNode).visit(state, &keyContext)
 		n.params[1].(evalNode).visit(state, &valueContext)
 
@@ -407,13 +419,13 @@ func (n nodeFunction) visit(state *State, context *evalContext) error {
 		}
 	case "clusters":
 		// TODO: Error handling
-		subContext := newContext()
+		subContext := context.sub()
 		n.params[0].(evalNode).visit(state, &subContext)
 
 		lookingFor := subContext.currentResult
 
 		for clusterName, _ := range state.clusters {
-			subContext = newClusterContext(clusterName)
+			subContext = context.subCluster(clusterName)
 			clusterLookup(state, &subContext, "CLUSTER")
 
 			for value := range subContext.resultIter() {
@@ -479,7 +491,7 @@ func clusterLookup(state *State, context *evalContext, key string) error {
 	if state.clusterCache[clusterName][key] == nil {
 		clusterExp := cluster[key] // TODO: Error handling
 
-		subContext := newClusterContext(context.currentClusterName)
+		subContext := context.subCluster(context.currentClusterName)
 
 		for _, value := range clusterExp {
 			evalErr = evalRangeInplace(value, state, &subContext)

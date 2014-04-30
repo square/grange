@@ -223,6 +223,13 @@ func TestClusters(t *testing.T) {
 	}))
 }
 
+func TestCycle(t *testing.T) {
+	testError2(t, "Query exceeded maximum recursion limit", "%a",
+		multiCluster(map[string]Cluster{
+			"a": Cluster{"CLUSTER": []string{"%a"}},
+		}))
+}
+
 func TestClustersEasy(t *testing.T) {
 	testEval(t, NewResult("a"), "clusters(one)", multiCluster(map[string]Cluster{
 		"a": Cluster{"CLUSTER": []string{"two", "one"}},
