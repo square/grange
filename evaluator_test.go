@@ -223,6 +223,23 @@ func TestClusters(t *testing.T) {
 	}))
 }
 
+func TestPrimeCacheReturnsErrors(t *testing.T) {
+	state := singleGroup("a", "(")
+	errors := state.PrimeCache()
+
+	if len(errors) == 1 {
+		expected := "Could not parse query: ("
+		actual := errors[0].Error()
+		if actual != expected {
+			t.Errorf("Different error returned.\n got: %s\nwant: %s",
+				actual, expected)
+		}
+	} else {
+		t.Errorf("Expected 1 error, got %d", len(errors))
+	}
+
+}
+
 func TestCycle(t *testing.T) {
 	testError2(t, "Query exceeded maximum recursion limit", "%a",
 		multiCluster(map[string]Cluster{

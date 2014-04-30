@@ -98,16 +98,26 @@ func (state *State) SetDefaultCluster(name string) {
 // PrimeCache traverses over the entire state to expand all values and store
 // them in the state's cache. Subsequent queries will be able to use the cache
 // immediately, rather than having to build it up incrementally.
-func (state *State) PrimeCache() {
+//
+// It returns all errors encountered during the traverse. This isn't
+// necessarily a critical problem, often errors will be in obscure keys, but
+// you should probably try to fix them.
+func (state *State) PrimeCache() []error {
+	errors := []error{}
+
 	// TODO: See if this is faster if parrelized (need to add coordination to
 	// cache).
 	for _, cluster := range state.clusters {
 		for _, values := range cluster {
 			for _, value := range values {
-				state.Query(value)
+				_, err := state.Query(value)
+				if err != nil {
+					errors = append(errors, err)
+				}
 			}
 		}
 	}
+	return errors
 }
 
 // ResetCache clears cached expansions. The public API for modifying state
