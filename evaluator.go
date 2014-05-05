@@ -166,7 +166,11 @@ func parseRange(input string) (parserNode, error) {
 		return nil, err
 	}
 	r.Execute()
-	return r.nodeStack[0], nil
+	if len(r.nodeStack) > 0 {
+		return r.nodeStack[0], nil
+	} else {
+		return nodeNull{}, nil
+	}
 }
 
 func evalRangeWithContext(input string, state *State, context *evalContext) (Result, error) {

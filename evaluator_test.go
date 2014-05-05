@@ -8,6 +8,10 @@ import (
 	"testing"
 )
 
+func TestEmptyQuery(t *testing.T) {
+	testEval(t, NewResult(), "", emptyState())
+}
+
 func TestDefaultCluster(t *testing.T) {
 	testEval(t, NewResult("b", "c"), "%a", singleCluster("a", Cluster{
 		"CLUSTER": []string{"b", "c"},
