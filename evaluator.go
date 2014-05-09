@@ -107,13 +107,11 @@ func (state *State) PrimeCache() []error {
 
 	// TODO: See if this is faster if parrelized (need to add coordination to
 	// cache).
-	for _, cluster := range state.clusters {
-		for _, values := range cluster {
-			for _, value := range values {
-				_, err := state.Query(value)
-				if err != nil {
-					errors = append(errors, err)
-				}
+	for name, cluster := range state.clusters {
+		for key, _ := range cluster {
+			_, err := state.Query("%" + name + ":" + key)
+			if err != nil {
+				errors = append(errors, err)
 			}
 		}
 	}
