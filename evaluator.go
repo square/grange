@@ -108,8 +108,10 @@ func (state *State) PrimeCache() []error {
 	// TODO: See if this is faster if parrelized (need to add coordination to
 	// cache).
 	for name, cluster := range state.clusters {
+		context := newContext()
+		context.currentClusterName = name
 		for key, _ := range cluster {
-			_, err := state.Query("%" + name + ":" + key)
+			err := clusterLookup(state, &context, key)
 			if err != nil {
 				errors = append(errors, err)
 			}
