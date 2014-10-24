@@ -23,8 +23,8 @@ Development
 
 This is library, so does not export a main function. Run it via tests.
 
-    Check out github.com/xaviershay/range-spec and set env var RANGE_SPEC_PATH
-    to its location.
+    export RANGE_SPEC_PATH=/tmp/range-spec
+    git clone https://github.com/xaviershay/range-spec.git $RANGE_SPEC_PATH
 
     go get github.com/xaviershay/peg
 
