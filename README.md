@@ -23,6 +23,9 @@ Development
 
 This is library, so does not export a main function. Run it via tests.
 
+    Check out github.com/xaviershay/range-spec and set env var RANGE_SPEC_PATH
+    to its location.
+
     go get github.com/xaviershay/peg
 
     $GOPATH/bin/peg range.peg && go test
