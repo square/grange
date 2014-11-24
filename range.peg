@@ -38,8 +38,8 @@ key      <- ':' rangeexpr { p.addKeyLookup() }
 localkey <- '$' literal { p.addLocalClusterLookup(buffer[begin:end]) }
 
 function <- literal { p.addFunction(buffer[begin:end]) } '(' funcargs ')'
-funcargs <- rangeexpr { p.addFuncArg() } ';' funcargs
-          / rangeexpr { p.addFuncArg() }
+funcargs <- rangeexpr combinators? { p.addFuncArg() } ';' funcargs
+          / rangeexpr combinators? { p.addFuncArg() }
 
 regex      <- '/' < (!'/' .)* > '/' { p.addRegex(buffer[begin:end]) }
 literal    <- < leaderChar [[a-z0-9-_]]* >
