@@ -421,6 +421,7 @@ func (n nodeFunction) visit(state *State, context *evalContext) error {
 		n.params[1].(evalNode).visit(state, &valueContext)
 
 		key := (<-keyContext.resultIter()).(string)
+		// TODO: OR match on multiple values
 		toMatch := (<-valueContext.resultIter()).(string)
 
 		for clusterName, cluster := range state.clusters {
