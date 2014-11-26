@@ -405,16 +405,25 @@ func (n nodeGroupQuery) visit(state *State, context *evalContext) error {
 func (n nodeFunction) visit(state *State, context *evalContext) error {
 	switch n.name {
 	case "allclusters":
+		if err := n.verifyParams(0); err != nil {
+			return err
+		}
 		for clusterKey, _ := range state.clusters {
 			context.addResult(clusterKey)
 		}
 	case "count":
+		if err := n.verifyParams(1); err != nil {
+			return err
+		}
 		valueContext := context.sub()
 		n.params[0].(evalNode).visit(state, &valueContext)
 
 		context.addResult(strconv.Itoa(valueContext.currentResult.Cardinality()))
 	case "has":
-		// TODO: Error handling when no or multiple results
+		if err := n.verifyParams(2); err != nil {
+			return err
+		}
+
 		keyContext := context.sub()
 		valueContext := context.sub()
 		n.params[0].(evalNode).visit(state, &keyContext)
@@ -433,7 +442,9 @@ func (n nodeFunction) visit(state *State, context *evalContext) error {
 			}
 		}
 	case "clusters":
-		// TODO: Error handling
+		if err := n.verifyParams(1); err != nil {
+			return err
+		}
 		subContext := context.sub()
 		n.params[0].(evalNode).visit(state, &subContext)
 
@@ -449,6 +460,20 @@ func (n nodeFunction) visit(state *State, context *evalContext) error {
 				}
 			}
 		}
+	default:
+		return errors.New(fmt.Sprintf("Unknown function: %s", n.name))
+	}
+	return nil
+}
+
+func (n nodeFunction) verifyParams(expected int) error {
+	if len(n.params) != expected {
+		msg := fmt.Sprintf("Wrong number of params for %s: expected %d, got %d.",
+			n.name,
+			expected,
+			len(n.params),
+		)
+		return errors.New(msg)
 	}
 	return nil
 }
