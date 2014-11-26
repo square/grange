@@ -287,6 +287,18 @@ func TestLengthError(t *testing.T) {
 	testError2(t, fmt.Sprintf("Query is too long, max length is %d", MaxQuerySize), longString+"a", emptyState())
 }
 
+func TestFunctionError(t *testing.T) {
+	testError2(t, "Wrong number of params for has: expected 2, got 0.", "has()", emptyState())
+	testError2(t, "Wrong number of params for has: expected 2, got 1.", "has(x)", emptyState())
+	testError2(t, "Wrong number of params for has: expected 2, got 3.", "has(x;y;z)", emptyState())
+
+	testError2(t, "Wrong number of params for count: expected 1, got 0.", "count()", emptyState())
+	testError2(t, "Wrong number of params for clusters: expected 1, got 0.", "clusters()", emptyState())
+	testError2(t, "Wrong number of params for allclusters: expected 0, got 1.", "allclusters(x)", emptyState())
+
+	testError2(t, "Unknown function: foobar", "foobar(x)", emptyState())
+}
+
 func TestMaxResults(t *testing.T) {
 	result := make([]interface{}, MaxResults)
 	for i := 1; i <= MaxResults; i++ {
