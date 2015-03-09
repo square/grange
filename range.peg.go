@@ -878,7 +878,7 @@ func (p *rangeQuery) Init() {
 			position, tokenIndex, depth = position0, tokenIndex0, depth0
 			return false
 		},
-		/* 1 rangeexpr <- <(space (q / function / cluster / group / groupq / localkey / regex / value / brackets / (Action0 braces) / null))> */
+		/* 1 rangeexpr <- <(space (q / function / cluster / group / groupq / localkey / regex / value / brackets / (Action0 braces) / null) space)> */
 		func() bool {
 			position5, tokenIndex5, depth5 := position, tokenIndex, depth
 			{
@@ -957,6 +957,9 @@ func (p *rangeQuery) Init() {
 					}
 				}
 			l7:
+				if !rules[rulespace]() {
+					goto l5
+				}
 				depth--
 				add(rulerangeexpr, position6)
 			}
