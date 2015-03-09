@@ -18,6 +18,7 @@ rangeexpr <- space
     / value
     / brackets
     / { p.addBraceStart() } braces
+    / space
     / null)
 
 combinators <- space (union / intersect / exclude / braces)
