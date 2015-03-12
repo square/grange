@@ -59,7 +59,7 @@ func numericExpansionFor(prefix string, start int, end string, suffix string) st
 }
 
 func compressNumeric(nodes []string) []string {
-	r := regexp.MustCompile("^(.*?)(\\d+)(.*)$")
+	r := regexp.MustCompile("^(.*?)(\\d+)([^\\d]*)$")
 
 	result := []string{}
 	currentPrefix := ""
