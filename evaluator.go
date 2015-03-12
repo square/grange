@@ -431,14 +431,15 @@ func (n nodeFunction) visit(state *State, context *evalContext) error {
 
 		key := (<-keyContext.resultIter()).(string)
 
-		for clusterName, cluster := range state.clusters {
-			for _, value := range cluster[key] {
-				for toMatch := range valueContext.resultIter() {
-					if value == toMatch {
-						context.addResult(clusterName)
-						continue
-					}
-				}
+		for clusterName, _ := range state.clusters {
+			subContext := context.subCluster(clusterName)
+			clusterLookup(state, &subContext, key)
+
+			l := subContext.currentResult.Set
+			r := valueContext.currentResult.Set
+
+			if l.Intersect(r).Cardinality() > 0 {
+				context.addResult(clusterName)
 			}
 		}
 	case "clusters":
