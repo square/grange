@@ -31,7 +31,8 @@ braces   <- '{' rangeexpr combinators? '}' rangeexpr? { p.addBraces() }
 brackets <- '(' rangeexpr combinators? ')'
 
 groupq  <- '?' rangeexpr { p.addGroupQuery() }
-cluster <- '%' rangeexpr { p.addClusterLookup() } key?
+cluster <-  '%' literal { p.addValue(buffer[begin:end]); p.addClusterLookup() } key?
+          / '%{' rangeexpr { p.addClusterLookup() } '}' key?
 group   <- '@' rangeexpr { p.addGroupLookup() }
 
 # TODO: Use rangeexpr for the following?
@@ -44,7 +45,7 @@ funcargs <- rangeexpr combinators? { p.addFuncArg() } ';' funcargs
 
 regex      <- '/' < (!'/' .)* > '/' { p.addRegex(buffer[begin:end]) }
 literal    <- < leaderChar [[a-z0-9-_]]* >
-value      <- < leaderChar [[a-z0-9-_.]]* > { p.addValue(buffer[begin:end]) }
+value      <- < leaderChar [[:a-z0-9-_.]]* > { p.addValue(buffer[begin:end]) }
 leaderChar <- [[a-z0-9._]] # Do not match "-" so not to confuse with exclude rule
 space      <- ' '*
 const      <- q / quoted
