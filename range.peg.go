@@ -34,7 +34,9 @@ const (
 	rulevalue
 	ruleleaderChar
 	rulespace
+	ruleconst
 	ruleq
+	rulequoted
 	ruleAction0
 	rulenull
 	ruleAction1
@@ -53,6 +55,7 @@ const (
 	ruleAction13
 	ruleAction14
 	ruleAction15
+	ruleAction16
 
 	rulePre_
 	rule_In_
@@ -81,7 +84,9 @@ var rul3s = [...]string{
 	"value",
 	"leaderChar",
 	"space",
+	"const",
 	"q",
+	"quoted",
 	"Action0",
 	"null",
 	"Action1",
@@ -100,6 +105,7 @@ var rul3s = [...]string{
 	"Action13",
 	"Action14",
 	"Action15",
+	"Action16",
 
 	"Pre_",
 	"_In_",
@@ -669,7 +675,7 @@ type rangeQuery struct {
 
 	Buffer string
 	buffer []rune
-	rules  [40]func() bool
+	rules  [43]func() bool
 	Parse  func(rule ...int) error
 	Reset  func()
 	tokenTree
@@ -776,6 +782,8 @@ func (p *rangeQuery) Execute() {
 			p.addValue(buffer[begin:end])
 		case ruleAction15:
 			p.addConstant(buffer[begin:end])
+		case ruleAction16:
+			p.addConstant(buffer[begin:end])
 
 		}
 	}
@@ -878,7 +886,7 @@ func (p *rangeQuery) Init() {
 			position, tokenIndex, depth = position0, tokenIndex0, depth0
 			return false
 		},
-		/* 1 rangeexpr <- <(space (q / function / cluster / group / groupq / localkey / regex / value / brackets / (Action0 braces) / null) space)> */
+		/* 1 rangeexpr <- <(space (const / function / cluster / group / groupq / localkey / regex / value / brackets / (Action0 braces) / null) space)> */
 		func() bool {
 			position5, tokenIndex5, depth5 := position, tokenIndex, depth
 			{
@@ -889,7 +897,7 @@ func (p *rangeQuery) Init() {
 				}
 				{
 					position7, tokenIndex7, depth7 := position, tokenIndex, depth
-					if !rules[ruleq]() {
+					if !rules[ruleconst]() {
 						goto l8
 					}
 					goto l7
@@ -1713,156 +1721,234 @@ func (p *rangeQuery) Init() {
 			}
 			return true
 		},
-		/* 20 q <- <('q' '(' <(!')' .)*> ')' Action15)> */
+		/* 20 const <- <(q / quoted)> */
 		func() bool {
 			position112, tokenIndex112, depth112 := position, tokenIndex, depth
 			{
 				position113 := position
 				depth++
-				if buffer[position] != rune('q') {
-					goto l112
-				}
-				position++
-				if buffer[position] != rune('(') {
-					goto l112
-				}
-				position++
 				{
-					position114 := position
-					depth++
-				l115:
-					{
-						position116, tokenIndex116, depth116 := position, tokenIndex, depth
-						{
-							position117, tokenIndex117, depth117 := position, tokenIndex, depth
-							if buffer[position] != rune(')') {
-								goto l117
-							}
-							position++
-							goto l116
-						l117:
-							position, tokenIndex, depth = position117, tokenIndex117, depth117
-						}
-						if !matchDot() {
-							goto l116
-						}
+					position114, tokenIndex114, depth114 := position, tokenIndex, depth
+					if !rules[ruleq]() {
 						goto l115
-					l116:
-						position, tokenIndex, depth = position116, tokenIndex116, depth116
 					}
-					depth--
-					add(rulePegText, position114)
+					goto l114
+				l115:
+					position, tokenIndex, depth = position114, tokenIndex114, depth114
+					if !rules[rulequoted]() {
+						goto l112
+					}
 				}
-				if buffer[position] != rune(')') {
-					goto l112
-				}
-				position++
-				if !rules[ruleAction15]() {
-					goto l112
-				}
+			l114:
 				depth--
-				add(ruleq, position113)
+				add(ruleconst, position113)
 			}
 			return true
 		l112:
 			position, tokenIndex, depth = position112, tokenIndex112, depth112
 			return false
 		},
-		/* 22 Action0 <- <{ p.addBraceStart() }> */
+		/* 21 q <- <('q' '(' <(!')' .)*> ')' Action15)> */
+		func() bool {
+			position116, tokenIndex116, depth116 := position, tokenIndex, depth
+			{
+				position117 := position
+				depth++
+				if buffer[position] != rune('q') {
+					goto l116
+				}
+				position++
+				if buffer[position] != rune('(') {
+					goto l116
+				}
+				position++
+				{
+					position118 := position
+					depth++
+				l119:
+					{
+						position120, tokenIndex120, depth120 := position, tokenIndex, depth
+						{
+							position121, tokenIndex121, depth121 := position, tokenIndex, depth
+							if buffer[position] != rune(')') {
+								goto l121
+							}
+							position++
+							goto l120
+						l121:
+							position, tokenIndex, depth = position121, tokenIndex121, depth121
+						}
+						if !matchDot() {
+							goto l120
+						}
+						goto l119
+					l120:
+						position, tokenIndex, depth = position120, tokenIndex120, depth120
+					}
+					depth--
+					add(rulePegText, position118)
+				}
+				if buffer[position] != rune(')') {
+					goto l116
+				}
+				position++
+				if !rules[ruleAction15]() {
+					goto l116
+				}
+				depth--
+				add(ruleq, position117)
+			}
+			return true
+		l116:
+			position, tokenIndex, depth = position116, tokenIndex116, depth116
+			return false
+		},
+		/* 22 quoted <- <('"' <(!'"' .)*> '"' Action16)> */
+		func() bool {
+			position122, tokenIndex122, depth122 := position, tokenIndex, depth
+			{
+				position123 := position
+				depth++
+				if buffer[position] != rune('"') {
+					goto l122
+				}
+				position++
+				{
+					position124 := position
+					depth++
+				l125:
+					{
+						position126, tokenIndex126, depth126 := position, tokenIndex, depth
+						{
+							position127, tokenIndex127, depth127 := position, tokenIndex, depth
+							if buffer[position] != rune('"') {
+								goto l127
+							}
+							position++
+							goto l126
+						l127:
+							position, tokenIndex, depth = position127, tokenIndex127, depth127
+						}
+						if !matchDot() {
+							goto l126
+						}
+						goto l125
+					l126:
+						position, tokenIndex, depth = position126, tokenIndex126, depth126
+					}
+					depth--
+					add(rulePegText, position124)
+				}
+				if buffer[position] != rune('"') {
+					goto l122
+				}
+				position++
+				if !rules[ruleAction16]() {
+					goto l122
+				}
+				depth--
+				add(rulequoted, position123)
+			}
+			return true
+		l122:
+			position, tokenIndex, depth = position122, tokenIndex122, depth122
+			return false
+		},
+		/* 24 Action0 <- <{ p.addBraceStart() }> */
 		func() bool {
 			{
 				add(ruleAction0, position)
 			}
 			return true
 		},
-		/* 23 null <- <> */
+		/* 25 null <- <> */
 		func() bool {
 			{
-				position121 := position
+				position131 := position
 				depth++
 				depth--
-				add(rulenull, position121)
+				add(rulenull, position131)
 			}
 			return true
 		},
-		/* 24 Action1 <- <{ p.addOperator(operatorIntersect) }> */
+		/* 26 Action1 <- <{ p.addOperator(operatorIntersect) }> */
 		func() bool {
 			{
 				add(ruleAction1, position)
 			}
 			return true
 		},
-		/* 25 Action2 <- <{ p.addOperator(operatorSubtract) }> */
+		/* 27 Action2 <- <{ p.addOperator(operatorSubtract) }> */
 		func() bool {
 			{
 				add(ruleAction2, position)
 			}
 			return true
 		},
-		/* 26 Action3 <- <{ p.addOperator(operatorUnion) }> */
+		/* 28 Action3 <- <{ p.addOperator(operatorUnion) }> */
 		func() bool {
 			{
 				add(ruleAction3, position)
 			}
 			return true
 		},
-		/* 27 Action4 <- <{ p.addBraces() }> */
+		/* 29 Action4 <- <{ p.addBraces() }> */
 		func() bool {
 			{
 				add(ruleAction4, position)
 			}
 			return true
 		},
-		/* 28 Action5 <- <{ p.addGroupQuery() }> */
+		/* 30 Action5 <- <{ p.addGroupQuery() }> */
 		func() bool {
 			{
 				add(ruleAction5, position)
 			}
 			return true
 		},
-		/* 29 Action6 <- <{ p.addClusterLookup() }> */
+		/* 31 Action6 <- <{ p.addClusterLookup() }> */
 		func() bool {
 			{
 				add(ruleAction6, position)
 			}
 			return true
 		},
-		/* 30 Action7 <- <{ p.addGroupLookup() }> */
+		/* 32 Action7 <- <{ p.addGroupLookup() }> */
 		func() bool {
 			{
 				add(ruleAction7, position)
 			}
 			return true
 		},
-		/* 31 Action8 <- <{ p.addKeyLookup() }> */
+		/* 33 Action8 <- <{ p.addKeyLookup() }> */
 		func() bool {
 			{
 				add(ruleAction8, position)
 			}
 			return true
 		},
-		/* 32 Action9 <- <{ p.addLocalClusterLookup(buffer[begin:end]) }> */
+		/* 34 Action9 <- <{ p.addLocalClusterLookup(buffer[begin:end]) }> */
 		func() bool {
 			{
 				add(ruleAction9, position)
 			}
 			return true
 		},
-		/* 33 Action10 <- <{ p.addFunction(buffer[begin:end]) }> */
+		/* 35 Action10 <- <{ p.addFunction(buffer[begin:end]) }> */
 		func() bool {
 			{
 				add(ruleAction10, position)
 			}
 			return true
 		},
-		/* 34 Action11 <- <{ p.addFuncArg() }> */
+		/* 36 Action11 <- <{ p.addFuncArg() }> */
 		func() bool {
 			{
 				add(ruleAction11, position)
 			}
 			return true
 		},
-		/* 35 Action12 <- <{ p.addFuncArg() }> */
+		/* 37 Action12 <- <{ p.addFuncArg() }> */
 		func() bool {
 			{
 				add(ruleAction12, position)
@@ -1870,24 +1956,31 @@ func (p *rangeQuery) Init() {
 			return true
 		},
 		nil,
-		/* 37 Action13 <- <{ p.addRegex(buffer[begin:end]) }> */
+		/* 39 Action13 <- <{ p.addRegex(buffer[begin:end]) }> */
 		func() bool {
 			{
 				add(ruleAction13, position)
 			}
 			return true
 		},
-		/* 38 Action14 <- <{ p.addValue(buffer[begin:end]) }> */
+		/* 40 Action14 <- <{ p.addValue(buffer[begin:end]) }> */
 		func() bool {
 			{
 				add(ruleAction14, position)
 			}
 			return true
 		},
-		/* 39 Action15 <- <{ p.addConstant(buffer[begin:end]) }> */
+		/* 41 Action15 <- <{ p.addConstant(buffer[begin:end]) }> */
 		func() bool {
 			{
 				add(ruleAction15, position)
+			}
+			return true
+		},
+		/* 42 Action16 <- <{ p.addConstant(buffer[begin:end]) }> */
+		func() bool {
+			{
+				add(ruleAction16, position)
 			}
 			return true
 		},
