@@ -53,6 +53,10 @@ func TestErrorClusterName(t *testing.T) {
 	testError(t, "Invalid token in query: \"}\"", "%}")
 }
 
+func TestStartingDash(t *testing.T) {
+	testError(t, "Could not parse query: -foo", "-foo")
+}
+
 func TestHas(t *testing.T) {
 	testEval(t, NewResult("a", "b"), "has(TYPE;one)", multiCluster(map[string]Cluster{
 		"a": Cluster{"TYPE": []string{"one", "two"}},

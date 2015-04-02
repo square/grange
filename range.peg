@@ -5,7 +5,9 @@ type rangeQuery Peg {
   nodeStack []parserNode
 }
 
-expression <- rangeexpr combinators? !.
+expression <- combinedexpr? !.
+
+combinedexpr <- rangeexpr combinators?
 
 rangeexpr <- space
     ( const
@@ -18,7 +20,7 @@ rangeexpr <- space
     / value
     / brackets
     / { p.addBraceStart() } braces
-    / null)
+    )
     space
 
 combinators <- space (union / intersect / exclude / braces)
@@ -27,8 +29,8 @@ exclude     <- '-' rangeexpr  { p.addOperator(operatorSubtract) } combinators?
 union       <- ',' rangeexpr  { p.addOperator(operatorUnion) } combinators?
 
 # See https://github.com/pointlander/peg/issues/21 for context
-braces   <- '{' rangeexpr combinators? '}' rangeexpr? { p.addBraces() }
-brackets <- '(' rangeexpr combinators? ')'
+braces   <- '{' combinedexpr? '}' rangeexpr? { p.addBraces() }
+brackets <- '(' combinedexpr? ')'
 
 groupq  <- '?' rangeexpr { p.addGroupQuery() }
 cluster <-  '%' literal { p.addValue(buffer[begin:end]); p.addClusterLookup() } key?
@@ -40,8 +42,8 @@ key      <- ':' rangeexpr { p.addKeyLookup() }
 localkey <- '$' literal { p.addLocalClusterLookup(buffer[begin:end]) }
 
 function <- literal { p.addFunction(buffer[begin:end]) } '(' funcargs ')'
-funcargs <- rangeexpr combinators? { p.addFuncArg() } ';' funcargs
-          / rangeexpr combinators? { p.addFuncArg() }
+funcargs <- combinedexpr? { p.addFuncArg() } ';' funcargs
+          / combinedexpr? { p.addFuncArg() }
 
 regex      <- '/' < (!'/' .)* > '/' { p.addRegex(buffer[begin:end]) }
 literal    <- < leaderChar [[a-z0-9-_]]* >
