@@ -1244,7 +1244,7 @@ func (p *rangeQuery) Init() {
 			position, tokenIndex, depth = position49, tokenIndex49, depth49
 			return false
 		},
-		/* 10 cluster <- <(('%' literal Action6 key?) / ('%' '{' rangeexpr Action7 '}' key?))> */
+		/* 10 cluster <- <(('%' literal Action6 key?) / ('%' rangeexpr Action7 key?))> */
 		func() bool {
 			position51, tokenIndex51, depth51 := position, tokenIndex, depth
 			{
@@ -1279,20 +1279,12 @@ func (p *rangeQuery) Init() {
 						goto l51
 					}
 					position++
-					if buffer[position] != rune('{') {
-						goto l51
-					}
-					position++
 					if !rules[rulerangeexpr]() {
 						goto l51
 					}
 					if !rules[ruleAction7]() {
 						goto l51
 					}
-					if buffer[position] != rune('}') {
-						goto l51
-					}
-					position++
 					{
 						position57, tokenIndex57, depth57 := position, tokenIndex, depth
 						if !rules[rulekey]() {

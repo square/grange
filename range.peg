@@ -34,7 +34,7 @@ brackets <- '(' combinedexpr? ')'
 
 groupq  <- '?' rangeexpr { p.addGroupQuery() }
 cluster <-  '%' literal { p.addValue(buffer[begin:end]); p.addClusterLookup() } key?
-          / '%{' rangeexpr { p.addClusterLookup() } '}' key?
+          / '%' rangeexpr { p.addClusterLookup() } key?
 group   <- '@' rangeexpr { p.addGroupLookup() }
 
 # TODO: Use rangeexpr for the following?
