@@ -46,19 +46,27 @@ func runExpandSpec(t *testing.T, spec RangeSpec) {
 	}
 
 	for _, yamlPath := range yamls {
-		dat, _ := ioutil.ReadFile(yamlPath)
+		dat, err := ioutil.ReadFile(yamlPath)
+		if err != nil {
+			t.Errorf("Could not read: %s", yamlPath)
+		}
 		basename := path.Base(yamlPath)
 		name := strings.TrimSuffix(basename, ".yaml")
 
 		m := make(map[string]interface{})
-		_ = yaml.Unmarshal(dat, &m)
+		err = yaml.Unmarshal(dat, &m)
+		if err != nil {
+			t.Errorf("Invalid YAML: %s", yamlPath)
+		}
 		c := yamlToCluster(name, m)
 		state.AddCluster(name, c)
 	}
 
-	actual, _ := state.Query(spec.expr)
+	actual, err := state.Query(spec.expr)
 
-	if !reflect.DeepEqual(actual, spec.results) {
+	if err != nil {
+		t.Errorf("%s", err)
+	} else if !reflect.DeepEqual(actual, spec.results) {
 		t.Errorf("failed %s:%d\n got: %s\nwant: %s",
 			spec.path, spec.line, actual, spec.results)
 	}
