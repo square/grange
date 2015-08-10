@@ -13,6 +13,7 @@ rangeexpr <- space
     ( const
     / function
     / cluster
+    / clusterq
     / group
     / groupq
     / localkey
@@ -32,6 +33,7 @@ union       <- ',' rangeexpr  { p.addOperator(operatorUnion) } combinators?
 braces   <- '{' combinedexpr? '}' rangeexpr? { p.addBraces() }
 brackets <- '(' combinedexpr? ')'
 
+clusterq <- '*' rangeexpr { p.addClusterQuery() }
 groupq  <- '?' rangeexpr { p.addGroupQuery() }
 cluster <-  '%' literal { p.addValue(buffer[begin:end]); p.addClusterLookup() } key?
           / '%' rangeexpr { p.addClusterLookup() } key?
