@@ -77,6 +77,11 @@ func (r *rangeQuery) addGroupQuery() {
 	r.pushNode(nodeGroupQuery{exprNode})
 }
 
+func (r *rangeQuery) addClusterQuery() {
+	exprNode := r.popNode()
+	r.pushNode(nodeFunction{"clusters", []parserNode{exprNode}})
+}
+
 func (r *rangeQuery) addLocalClusterLookup(key string) {
 	r.pushNode(nodeLocalClusterLookup{key})
 }
