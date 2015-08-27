@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"vbom.ml/util/sortorder"
 )
 
 var (
@@ -25,18 +27,18 @@ func Compress(nodes *Result) string {
 			noDomain = append(noDomain, node.(string))
 		}
 	}
-	sort.Strings(noDomain)
+	sort.Sort(sortorder.Natural(noDomain))
 
 	result := compressNumeric(noDomain)
 	var domainKeys = []string{}
 	for domain, _ := range domains {
 		domainKeys = append(domainKeys, domain)
 	}
-	sort.Strings(domainKeys)
+	sort.Sort(sortorder.Natural(domainKeys))
 
 	for _, domain := range domainKeys {
 		domainNodes := domains[domain]
-		sort.Strings(domainNodes)
+		sort.Sort(sortorder.Natural(domainNodes))
 		domainNodes = compressNumeric(domainNodes)
 		joined := strings.Join(domainNodes, ",")
 		if len(domainNodes) > 1 {
@@ -47,14 +49,14 @@ func Compress(nodes *Result) string {
 	return strings.Join(result, ",")
 }
 
-func numericExpansionFor(prefix string, start int, end string, suffix string) string {
+func numericExpansionFor(prefix string, start string, end string, suffix string) string {
 	endN, _ := strconv.Atoi(end)
+	startN, _ := strconv.Atoi(start)
 
-	if start == endN {
+	if startN == endN {
 		return fmt.Sprintf("%s%s%s", prefix, end, suffix)
 	} else {
-		leadingZeros := strings.Repeat("0", len(end)-len(strconv.Itoa(start)))
-		return fmt.Sprintf("%s%s%d..%d%s", prefix, leadingZeros, start, endN, suffix)
+		return fmt.Sprintf("%s%s..%d%s", prefix, start, endN, suffix)
 	}
 }
 
@@ -65,13 +67,14 @@ func compressNumeric(nodes []string) []string {
 	currentPrefix := ""
 	currentSuffix := ""
 	currentNstr := ""
-	start := -1
+	start := ""
+	startN := -1
 	currentN := -1
 
 	flush := func() {
-		if start > -1 {
+		if startN > -1 {
 			result = append(result, numericExpansionFor(currentPrefix, start, currentNstr, currentSuffix))
-			start = -1
+			startN = -1
 			currentPrefix = ""
 			currentSuffix = ""
 			currentN = -1
@@ -93,14 +96,20 @@ func compressNumeric(nodes []string) []string {
 			if prefix != currentPrefix || suffix != currentSuffix {
 				flush()
 			}
+
 			//if len(n) != len(currentNstr) {
 			//flush
 			newN, _ := strconv.Atoi(n)
 
-			if start < 0 || newN != currentN+1 {
+			if zeroCount(n) != zeroCount(currentNstr) && len(n) != len(currentNstr) {
+				flush()
+			}
+
+			if startN < 0 || newN != currentN+1 {
 				// first in run
 				flush()
-				start = newN
+				start = n
+				startN = newN
 			}
 
 			currentNstr = n
@@ -111,4 +120,15 @@ func compressNumeric(nodes []string) []string {
 	}
 	flush()
 	return result
+}
+
+func zeroCount(n string) int {
+	count := 0
+	for _, c := range n {
+		if c != '0' {
+			break
+		}
+		count++
+	}
+	return count
 }
