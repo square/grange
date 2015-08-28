@@ -45,6 +45,10 @@ func (r *rangeQuery) addFuncArg() {
 }
 
 func (r *rangeQuery) addBraces() {
+	if len(r.nodeStack) < 2 {
+		return
+	}
+
 	right := r.popNode()
 	node := r.popNode()
 
