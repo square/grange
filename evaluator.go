@@ -252,7 +252,22 @@ func (n nodeBraceStart) visit(state *State, context *evalContext) error {
 }
 
 func (n nodeLocalClusterLookup) visit(state *State, context *evalContext) error {
-	return clusterLookup(state, context, n.key)
+	var evalErr error
+
+	subContext := context.sub()
+	evalErr = n.node.(evalNode).visit(state, &subContext)
+	if evalErr != nil {
+		return evalErr
+	}
+
+	for key := range subContext.resultIter() {
+		evalErr = clusterLookup(state, context, key.(string))
+		if evalErr != nil {
+			return evalErr
+		}
+	}
+
+	return nil
 }
 
 func (n nodeClusterLookup) visit(state *State, context *evalContext) error {

@@ -87,7 +87,7 @@ func (r *rangeQuery) addClusterQuery() {
 }
 
 func (r *rangeQuery) addLocalClusterLookup(key string) {
-	r.pushNode(nodeLocalClusterLookup{key})
+	r.pushNode(nodeLocalClusterLookup{nodeConstant{key}})
 }
 
 func (r *rangeQuery) addFunction(name string) {
