@@ -39,9 +39,8 @@ cluster <-  '%' literal { p.addValue(buffer[begin:end]); p.addClusterLookup() } 
           / '%' rangeexpr { p.addClusterLookup() } key?
 group   <- '@' rangeexpr { p.addGroupLookup() }
 
-# TODO: Use rangeexpr for the following?
 key      <- ':' rangeexpr { p.addKeyLookup() }
-localkey <- '$' literal { p.addLocalClusterLookup(buffer[begin:end]) }
+localkey <- '$' rangeexpr { p.addLocalClusterLookup() }
 
 function <- literal { p.addFunction(buffer[begin:end]) } '(' funcargs ')'
 funcargs <- combinedexpr? { p.addFuncArg() } ';' funcargs

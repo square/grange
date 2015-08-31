@@ -86,8 +86,9 @@ func (r *rangeQuery) addClusterQuery() {
 	r.pushNode(nodeFunction{"clusters", []parserNode{exprNode}})
 }
 
-func (r *rangeQuery) addLocalClusterLookup(key string) {
-	r.pushNode(nodeLocalClusterLookup{nodeConstant{key}})
+func (r *rangeQuery) addLocalClusterLookup() {
+	exprNode := r.popNode()
+	r.pushNode(nodeLocalClusterLookup{exprNode})
 }
 
 func (r *rangeQuery) addFunction(name string) {

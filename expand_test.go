@@ -15,8 +15,6 @@ import (
 
 // range-specs that are not currently implemented
 var PendingList = []string{
-	"expand/local_cluster_lookup/local_cluster_lookup.spec:5",
-	"expand/local_cluster_lookup/local_cluster_lookup.spec:10",
 }
 
 func TestExpand(t *testing.T) {
