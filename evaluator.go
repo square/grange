@@ -214,10 +214,16 @@ func (n nodeBraces) visit(state *State, context *evalContext) error {
 	leftContext := context.sub()
 	rightContext := context.sub()
 	middleContext := context.sub()
-	// TODO: Handle errors
-	n.left.(evalNode).visit(state, &leftContext)
-	n.node.(evalNode).visit(state, &middleContext)
-	n.right.(evalNode).visit(state, &rightContext)
+
+	if err := n.left.(evalNode).visit(state, &leftContext); err != nil {
+		return err
+	}
+	if err := n.node.(evalNode).visit(state, &middleContext); err != nil {
+		return err
+	}
+	if err := n.right.(evalNode).visit(state, &rightContext); err != nil {
+		return err
+	}
 
 	if leftContext.hasResults() {
 		leftContext.addResult("")
@@ -290,7 +296,9 @@ func (n nodeOperator) visit(state *State, context *evalContext) error {
 	case operatorIntersect:
 
 		leftContext := context.sub()
-		n.left.(evalNode).visit(state, &leftContext) // TODO: Error handle
+		if err := n.left.(evalNode).visit(state, &leftContext); err != nil {
+			return err
+		}
 
 		if leftContext.currentResult.Cardinality() == 0 {
 			// Optimization: no need to compute right side if left side is empty
@@ -300,14 +308,18 @@ func (n nodeOperator) visit(state *State, context *evalContext) error {
 		rightContext := context.sub()
 		// nodeRegexp needs to know about LHS to filter correctly
 		rightContext.workingResult = &leftContext.currentResult
-		n.right.(evalNode).visit(state, &rightContext) // TODO: Error handle
+		if err := n.right.(evalNode).visit(state, &rightContext); err != nil {
+			return err
+		}
 
 		for x := range leftContext.currentResult.Intersect(rightContext.currentResult.Set).Iter() {
 			context.addResult(x.(string))
 		}
 	case operatorSubtract:
 		leftContext := context.sub()
-		n.left.(evalNode).visit(state, &leftContext) // TODO: Error handle
+		if err := n.left.(evalNode).visit(state, &leftContext); err != nil {
+			return err
+		}
 
 		if leftContext.currentResult.Cardinality() == 0 {
 			// Optimization: no need to compute right side if left side is empty
@@ -317,15 +329,20 @@ func (n nodeOperator) visit(state *State, context *evalContext) error {
 		rightContext := context.sub()
 		// nodeRegexp needs to know about LHS to filter correctly
 		rightContext.workingResult = &leftContext.currentResult
-		n.right.(evalNode).visit(state, &rightContext) // TODO: Error handle
+		if err := n.right.(evalNode).visit(state, &rightContext); err != nil {
+			return err
+		}
 
 		for x := range leftContext.currentResult.Difference(rightContext.currentResult.Set).Iter() {
 			context.addResult(x.(string))
 		}
 	case operatorUnion:
-		// TODO: Handle errors
-		n.left.(evalNode).visit(state, context)
-		n.right.(evalNode).visit(state, context)
+		if err := n.left.(evalNode).visit(state, context); err != nil {
+			return err
+		}
+		if err := n.right.(evalNode).visit(state, context); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -381,15 +398,18 @@ func (n nodeText) visit(state *State, context *evalContext) error {
 
 func (n nodeGroupQuery) visit(state *State, context *evalContext) error {
 	subContext := context.sub()
-	// TODO: Handle errors
-	n.node.(evalNode).visit(state, &subContext)
+	if err := n.node.(evalNode).visit(state, &subContext); err != nil {
+		return err
+	}
+
 	lookingFor := subContext.currentResult
 
 	for groupName, group := range state.clusters[state.defaultCluster] {
 		groupContext := context.sub()
 		for _, value := range group {
-			// TODO: Handle errors
-			evalRangeInplace(value, state, &groupContext)
+			if err := evalRangeInplace(value, state, &groupContext); err != nil {
+				return err
+			}
 		}
 
 		for x := range lookingFor.Iter() {
@@ -416,7 +436,9 @@ func (n nodeFunction) visit(state *State, context *evalContext) error {
 			return err
 		}
 		valueContext := context.sub()
-		n.params[0].(evalNode).visit(state, &valueContext)
+		if err := n.params[0].(evalNode).visit(state, &valueContext); err != nil {
+			return err
+		}
 
 		context.addResult(strconv.Itoa(valueContext.currentResult.Cardinality()))
 	case "has":
@@ -426,8 +448,12 @@ func (n nodeFunction) visit(state *State, context *evalContext) error {
 
 		keyContext := context.sub()
 		valueContext := context.sub()
-		n.params[0].(evalNode).visit(state, &keyContext)
-		n.params[1].(evalNode).visit(state, &valueContext)
+		if err := n.params[0].(evalNode).visit(state, &keyContext); err != nil {
+			return err
+		}
+		if err := n.params[1].(evalNode).visit(state, &valueContext); err != nil {
+			return err
+		}
 
 		key := (<-keyContext.resultIter()).(string)
 
@@ -447,7 +473,9 @@ func (n nodeFunction) visit(state *State, context *evalContext) error {
 			return err
 		}
 		subContext := context.sub()
-		n.params[0].(evalNode).visit(state, &subContext)
+		if err := n.params[0].(evalNode).visit(state, &subContext); err != nil {
+			return err
+		}
 
 		lookingFor := subContext.currentResult
 
