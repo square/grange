@@ -3,3 +3,7 @@ go:
   - tip
 
 script: script/ci
+install:
+  - mkdir -p $GOPATH/src/vbom.ml/util
+  - git clone https://github.com/fvbommel/util $GOPATH/src/vbom.ml/util
+  - go get -t -v ./...
