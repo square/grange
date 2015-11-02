@@ -8,7 +8,7 @@ datacenters.
 
     %{has(DC;east) & has(TYPE;redis)}:DOWN
 
-See [godocs](https://godoc.org/github.com/xaviershay/grange) for usage and
+See [godocs](https://godoc.org/github.com/square/grange) for usage and
 syntax.
 
 Goals
@@ -24,7 +24,7 @@ Development
 This is library, so does not export a main function. Run it via tests.
 
     export RANGE_SPEC_PATH=/tmp/range-spec
-    git clone https://github.com/xaviershay/range-spec.git $RANGE_SPEC_PATH
+    git clone https://github.com/square/range-spec.git $RANGE_SPEC_PATH
 
     go get github.com/xaviershay/peg
 
