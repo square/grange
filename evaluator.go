@@ -41,8 +41,8 @@ var (
 	// Maximum number of characters that grange will try to parse in a query.
 	// Queries longer than this will be rejected. This limit also applies to
 	// cluster and group names and values. Combined with MaxResults, this limits
-	// result sizes to approximately 1MB.
-	MaxQuerySize = 1000
+	// result sizes to approximately 4MB.
+	MaxQuerySize = 4000
 
 	// The maximum number of results a query can return. Execution will be
 	// short-circuited once this many results have been gathered. No error will
