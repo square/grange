@@ -26,6 +26,6 @@ This is library, so does not export a main function. Run it via tests.
     export RANGE_SPEC_PATH=/tmp/range-spec
     git clone https://github.com/square/range-spec.git $RANGE_SPEC_PATH
 
-    go get github.com/xaviershay/peg
+    go get github.com/pointlander/peg
 
     $GOPATH/bin/peg range.peg && go test
