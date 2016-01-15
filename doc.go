@@ -30,7 +30,7 @@ of each other ("self-referential").
     result, err := state.Query("%dc1")  // "host2"
 
 For an example usage of this library, see
-https://github.com/xaviershay/grange-server
+https://github.com/square/grange-server
 
 Syntax
 
