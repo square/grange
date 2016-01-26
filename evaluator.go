@@ -409,16 +409,33 @@ func (n nodeGroupQuery) visit(state *State, context *evalContext) error {
 
 	lookingFor := subContext.currentResult
 
+	// It's theoretically nicer to re-use clusterLookup here, but it's an order
+	// of magnitude slower than poking around the cache directly.
+	clusterName := state.defaultCluster
+
+	if state.clusterCache[clusterName] == nil {
+		state.clusterCache[clusterName] = map[string]*Result{}
+	}
+
 	for groupName, group := range state.clusters[state.defaultCluster] {
-		groupContext := context.sub()
-		for _, value := range group {
-			if err := evalRangeInplace(value, state, &groupContext); err != nil {
-				return err
+		key := groupName
+		if state.clusterCache[clusterName][key] == nil {
+			subContext := context.sub()
+
+			for _, value := range group {
+				err := evalRangeInplace(value, state, &subContext)
+				if err != nil {
+					return err
+				}
 			}
+
+			state.clusterCache[clusterName][key] = &subContext.currentResult
 		}
 
+		results := state.clusterCache[clusterName][key]
+
 		for x := range lookingFor.Iter() {
-			if groupContext.currentResult.Contains(x) {
+			if results.Contains(x) {
 				context.addResult(groupName)
 				break
 			}
