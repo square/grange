@@ -13,6 +13,12 @@ import (
 	"testing"
 )
 
+// range-specs that are not currently implemented
+var PendingList = []string{
+	"expand/local_cluster_lookup/local_cluster_lookup.spec:5",
+	"expand/local_cluster_lookup/local_cluster_lookup.spec:10",
+}
+
 func TestExpand(t *testing.T) {
 	spec_dir := os.Getenv("RANGE_SPEC_PATH")
 	if spec_dir == "" {
@@ -65,10 +71,23 @@ func runExpandSpec(t *testing.T, spec RangeSpec) {
 	actual, err := state.Query(spec.expr)
 
 	if err != nil {
-		t.Errorf("%s", err)
+		if spec.Ignore(PendingList) {
+			fmt.Printf("PENDING %s\n%s\n\n", spec.String(), err)
+		} else {
+			t.Errorf("FAILED %s\n%s", spec.String(), err)
+		}
 	} else if !reflect.DeepEqual(actual, spec.results) {
-		t.Errorf("failed %s:%d\n got: %s\nwant: %s",
-			spec.path, spec.line, actual, spec.results)
+		if spec.Ignore(PendingList) {
+			fmt.Printf("PENDING %s\n got: %s\nwant: %s\n\n",
+				spec.String(), actual, spec.results)
+		} else {
+			t.Errorf("FAILED %s\n got: %s\nwant: %s",
+				spec.String(), actual, spec.results)
+		}
+	} else {
+		if spec.Ignore(PendingList) {
+			t.Errorf("PASSED but listed as PENDING %s", spec.String())
+		}
 	}
 }
 

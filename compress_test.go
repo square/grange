@@ -16,6 +16,19 @@ type RangeSpec struct {
 	results Result
 }
 
+func (spec *RangeSpec) String() string {
+	return fmt.Sprintf("%s:%d", spec.path, spec.line)
+}
+
+func (spec *RangeSpec) Ignore(ignore_list []string) bool {
+	for _, ignore := range ignore_list {
+		if strings.HasSuffix(spec.String(), ignore) {
+			return true
+		}
+	}
+	return false
+}
+
 func TestCompress(t *testing.T) {
 	spec_dir := os.Getenv("RANGE_SPEC_PATH")
 	if spec_dir == "" {
