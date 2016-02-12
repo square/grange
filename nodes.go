@@ -21,6 +21,10 @@ type nodeNull struct{}
 
 // Transient marker node to delineate the start of a braces capture. This is
 // kind of weird. This node should never be present one parsing is complete.
+//
+// There is a known bug where %{} leaves this node in the parse tree. I'm not
+// sure how to fix at the parsing level yet, so for now have just included a
+// noop implementation of this node.
 type nodeBraceStart struct{}
 
 type nodeText struct {

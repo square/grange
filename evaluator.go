@@ -246,6 +246,11 @@ func (n nodeBraces) visit(state *State, context *evalContext) error {
 	return nil
 }
 
+// Hack, see note on nodeBraceStart definition in nodes.go
+func (n nodeBraceStart) visit(state *State, context *evalContext) error {
+	return nil
+}
+
 func (n nodeLocalClusterLookup) visit(state *State, context *evalContext) error {
 	return clusterLookup(state, context, n.key)
 }
