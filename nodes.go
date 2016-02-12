@@ -40,7 +40,7 @@ type nodeRegexp struct {
 }
 
 type nodeLocalClusterLookup struct {
-	key string
+	node parserNode
 }
 
 type nodeGroupQuery struct {
@@ -105,7 +105,7 @@ func (n nodeGroupQuery) String() string {
 }
 
 func (n nodeLocalClusterLookup) String() string {
-	return fmt.Sprintf("$%s", n.key)
+	return fmt.Sprintf("$%s", n.node)
 }
 
 func (n nodeBraces) String() string {

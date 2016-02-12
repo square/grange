@@ -535,7 +535,7 @@ func (p *rangeQuery) Execute() {
 		case ruleAction10:
 			p.addKeyLookup()
 		case ruleAction11:
-			p.addLocalClusterLookup(buffer[begin:end])
+			p.addLocalClusterLookup()
 		case ruleAction12:
 			p.addFunction(buffer[begin:end])
 		case ruleAction13:
@@ -1145,7 +1145,7 @@ func (p *rangeQuery) Init() {
 			position, tokenIndex, depth = position64, tokenIndex64, depth64
 			return false
 		},
-		/* 14 localkey <- <('$' literal Action11)> */
+		/* 14 localkey <- <('$' rangeexpr Action11)> */
 		func() bool {
 			position66, tokenIndex66, depth66 := position, tokenIndex, depth
 			{
@@ -1155,7 +1155,7 @@ func (p *rangeQuery) Init() {
 					goto l66
 				}
 				position++
-				if !_rules[ruleliteral]() {
+				if !_rules[rulerangeexpr]() {
 					goto l66
 				}
 				if !_rules[ruleAction11]() {
@@ -1772,7 +1772,7 @@ func (p *rangeQuery) Init() {
 			}
 			return true
 		},
-		/* 37 Action11 <- <{ p.addLocalClusterLookup(buffer[begin:end]) }> */
+		/* 37 Action11 <- <{ p.addLocalClusterLookup() }> */
 		func() bool {
 			{
 				add(ruleAction11, position)
