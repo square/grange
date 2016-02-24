@@ -15,6 +15,9 @@ import (
 
 // range-specs that are not currently implemented
 var PendingList = []string{
+	"spec/expand/simple/lookup.spec:19",
+	"spec/expand/simple/lookup.spec:24",
+	"spec/expand/simple/lookup.spec:29",
 }
 
 func TestExpand(t *testing.T) {
