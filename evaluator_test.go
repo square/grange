@@ -215,7 +215,7 @@ func TestCombineWithBraces(t *testing.T) {
 	testEval(t, NewResult("b"), "b - %{a}", emptyState())
 }
 
-func TestGroupLookupAndSubtractiong(t *testing.T) {
+func TestGroupLookupAndSubtraction(t *testing.T) {
 	testEval(t, NewResult("a"), "{a} - b", emptyState())
 }
 
