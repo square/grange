@@ -105,7 +105,7 @@ func (state *State) SetDefaultCluster(name string) {
 func (state *State) PrimeCache() []error {
 	errors := []error{}
 
-	// TODO: See if this is faster if parrelized (need to add coordination to
+	// TODO: See if this is faster if parallelized (need to add coordination to
 	// cache).
 	for name, cluster := range state.clusters {
 		context := newContext()
