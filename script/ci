@@ -3,4 +3,8 @@
 export RANGE_SPEC_PATH=/tmp/range-spec
 git clone https://github.com/square/range-spec.git $RANGE_SPEC_PATH
 
+# pinning upstream spec repo
+pushd $RANGE_SPEC_PATH;
+git checkout 54769a7ebb70dc1b51af0c51317a61c1f76e6f03
+popd
 go test

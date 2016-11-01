@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/streamrail/concurrent-map"
 	"gopkg.in/deckarep/v1/golang-set"
 )
 
@@ -24,7 +25,12 @@ type State struct {
 
 	// Populated lazily as groups are evaluated. They won't change unless state
 	// changes.
-	clusterCache map[string]map[string]*Result
+	// clusterCache map[string]map[string]*Result
+	// To make it concurrent read write capable , using concurrent-map.
+	// As concurrent-map stores value type as interface,
+	// we need to cast them back whenever we retrive values
+	// cmap.ConcurrentMap is of type map[string] interface
+	clusterCache cmap.ConcurrentMap
 }
 
 // A Cluster is mapping of arbitrary keys to arrays of values. The only
@@ -124,7 +130,8 @@ func (state *State) PrimeCache() []error {
 // already calls this when necessary, so you shouldn't really have a need to
 // call this.
 func (state *State) ResetCache() {
-	state.clusterCache = map[string]map[string]*Result{}
+	// state.clusterCache = map[string]map[string]*Result{}
+	state.clusterCache = cmap.New()
 }
 
 // Query is the main interface to grange. See the main package documentation
@@ -428,26 +435,30 @@ func (n nodeGroupQuery) visit(state *State, context *evalContext) error {
 	// of magnitude slower than poking around the cache directly.
 	clusterName := state.defaultCluster
 
-	if state.clusterCache[clusterName] == nil {
-		state.clusterCache[clusterName] = map[string]*Result{}
+	var cachedClusterDetails cmap.ConcurrentMap
+	if tmp, ok := state.clusterCache.Get(clusterName); ok {
+		cachedClusterDetails = tmp.(cmap.ConcurrentMap)
+	} else {
+		cachedClusterDetails = cmap.New()
+		state.clusterCache.Set(clusterName, cachedClusterDetails)
 	}
 
 	for groupName, group := range state.clusters[state.defaultCluster] {
 		key := groupName
-		if state.clusterCache[clusterName][key] == nil {
+		var results *Result
+		if tmp, ok := cachedClusterDetails.Get(key); ok {
+			results = tmp.(*Result)
+		} else {
 			subContext := context.sub()
-
 			for _, value := range group {
 				err := evalRangeInplace(value, state, &subContext)
 				if err != nil {
 					return err
 				}
 			}
-
-			state.clusterCache[clusterName][key] = &subContext.currentResult
+			results = &subContext.currentResult
+			cachedClusterDetails.Set(key, results)
 		}
-
-		results := state.clusterCache[clusterName][key]
 
 		for x := range lookingFor.Iter() {
 			if results.Contains(x) {
@@ -590,11 +601,17 @@ func clusterLookup(state *State, context *evalContext, key string) error {
 		return nil
 	}
 
-	if state.clusterCache[clusterName] == nil {
-		state.clusterCache[clusterName] = map[string]*Result{}
+	var cachedClusterDetails cmap.ConcurrentMap
+	if tmp, ok := state.clusterCache.Get(clusterName); ok {
+		cachedClusterDetails = tmp.(cmap.ConcurrentMap)
+	} else {
+		cachedClusterDetails = cmap.New()
+		state.clusterCache.Set(clusterName, cachedClusterDetails)
 	}
-
-	if state.clusterCache[clusterName][key] == nil {
+	var results *Result
+	if tmp, ok := cachedClusterDetails.Get(key); ok {
+		results = tmp.(*Result)
+	} else {
 		clusterExp := cluster[key] // TODO: Error handling
 
 		subContext := context.subCluster(context.currentClusterName)
@@ -605,11 +622,11 @@ func clusterLookup(state *State, context *evalContext, key string) error {
 				return evalErr
 			}
 		}
-
-		state.clusterCache[clusterName][key] = &subContext.currentResult
+		results = &subContext.currentResult
+		cachedClusterDetails.Set(key, results)
 	}
 
-	for x := range state.clusterCache[clusterName][key].Iter() {
+	for x := range results.Iter() {
 		context.addResult(x.(string))
 	}
 	return nil
