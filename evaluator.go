@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/streamrail/concurrent-map"
+	"github.com/orcaman/concurrent-map"
 	"gopkg.in/deckarep/v1/golang-set"
 )
 
