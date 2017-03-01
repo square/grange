@@ -130,7 +130,7 @@ func (state *State) SetDefaultCluster(name string) {
 // PrimeCache traverses over the entire state to expand all values and store
 // them in the state's cache. Subsequent queries will be able to use the cache
 // immediately, rather than having to build it up incrementally.
-
+//
 // It returns all errors encountered during the traverse. This isn't
 // necessarily a critical problem, often errors will be in obscure keys, but
 // you should probably try to fix them.
@@ -141,20 +141,24 @@ func (state *State) PrimeCache() []error {
 	clusters := state.clusterNamesAsArray()
 	arrayOfClusterSlices := splitIntoSlices(clusters, 8)
 	var wg sync.WaitGroup
-	resultCh := make(chan Result, 8)
-	errorCh := make(chan error, 8)
+	resultCh := make(chan mapset.Set, 8)
+	errorCh := make(chan []error, 8)
 	defer close(resultCh)
 	defer close(errorCh)
 	for _, slice := range arrayOfClusterSlices {
 		wg.Add(1)
 		go func(s []string) {
 			defer wg.Done()
-			clusterLookupOnSlice(state, s, resultCh, errorCh)
+			res, err := buildPrimeClusterCacheForSlice(state, s)
+			resultCh <- res
+			errorCh <- err
 		}(slice)
 	}
 	done := make(chan interface{})
 	go func() {
 		wg.Wait()
+		// sleep makes thats buffers in resultCh and errorCh are read
+		// time.Sleep(1*time.Millisecond)
 		close(done)
 	}()
 	results := mapset.NewSet()
@@ -164,11 +168,13 @@ Loop:
 	for {
 		select {
 		case r := <-resultCh:
-			results = results.Union(r.Set)
+			results = results.Union(r)
 		case err := <-errorCh:
-			errors = append(errors, err)
+			errors = append(errors, err...)
 		case <-done:
-			break Loop
+			if len(resultCh) == 0 && len(errorCh) == 0 {
+				break Loop
+			}
 		}
 	}
 	// end of Loop:
@@ -184,10 +190,7 @@ Loop:
 	return errors
 }
 
-// instead of returning entire state of metrics
-// returning map of metrics we want to expose.
-// should we return map[string] interface{} or map[string] int64 ?
-// decided to use int64, as it makes it easier on client side
+// StateMetrics returns metrics related to state, cache as map[string]int64
 func (state *State) StateMetrics() map[string]int64 {
 	metrics := make(map[string]int64)
 	metrics["stateInitializedAt"] = state.metrics.initializedAt.Unix()
@@ -203,8 +206,12 @@ func (state *State) StateMetrics() map[string]int64 {
 	return metrics
 }
 
-func clusterLookupOnSlice(state *State, clusters []string,
-	resultCh chan<- Result, errorCh chan<- error) {
+// buildPrimeClusterCacheForSlice is used internally for building ClusterCache.
+// returns results of CLUSTER_NAME:CLUSTER , which is used for building cachedCQR
+// also returns array of errors encounter during parsing clusters
+func buildPrimeClusterCacheForSlice(state *State, clusters []string) (mapset.Set, []error) {
+	var errs []error
+	res := mapset.NewSet()
 	for _, clusterName := range clusters {
 		context := newContext()
 		context.currentClusterName = clusterName
@@ -212,13 +219,14 @@ func clusterLookupOnSlice(state *State, clusters []string,
 			err := clusterLookup(state, &context, key)
 			// we are interested only results for key CLUSTER
 			if key == "CLUSTER" {
-				resultCh <- context.currentResult
+				res = res.Union(context.currentResult.Set)
 			}
 			if err != nil {
-				errorCh <- err
+				errs = append(errs, err)
 			}
 		}
 	}
+	return res, errs
 }
 
 func (state *State) clusterNamesAsArray() []string {
@@ -235,8 +243,7 @@ func (state *State) clusterNamesAsArray() []string {
 // if len(array) is less than count,
 // we splice array into slices of length 1
 // if len(array) is not multiple of count,
-// we end up returning more than 'count'number of slices
-
+// we end up returning more than 'count' number of slices
 func splitIntoSlices(array []string, count int) [][]string {
 	var ret [][]string
 	lengthOfArray := len(array)
@@ -251,7 +258,6 @@ func splitIntoSlices(array []string, count int) [][]string {
 		if i+sliceLength < lengthOfArray {
 			ret = append(ret, array[i:i+sliceLength])
 		} else {
-
 			ret = append(ret, array[i:lengthOfArray])
 		}
 	}
