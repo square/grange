@@ -6,6 +6,10 @@ import (
 	"regexp"
 	"strconv"
 
+	"sync"
+
+	"time"
+
 	"github.com/orcaman/concurrent-map"
 	"gopkg.in/deckarep/v1/golang-set"
 )
@@ -31,6 +35,25 @@ type State struct {
 	// we need to cast them back whenever we retrive values
 	// cmap.ConcurrentMap is of type map[string] interface
 	clusterCache cmap.ConcurrentMap
+
+	// clusters() query is expensive, we want to cache results of each such query
+	// var cachedClusterQueryResults map[string] Result
+	cachedCQR cmap.ConcurrentMap
+	metrics   metrics
+}
+
+type metrics struct {
+	// useful to know how old state is
+	initializedAt time.Time
+
+	cacheInitializedAt     time.Time
+	errorsDuringCacheBuild int
+
+	buildTimeForCache        float64
+	buildTimeForClusterCache float64
+	buildTimeForCachedCQR    float64
+
+	numberOfTruncatedResults int64
 }
 
 // A Cluster is mapping of arbitrary keys to arrays of values. The only
@@ -75,11 +98,14 @@ func (s *State) Clusters() map[string]Cluster {
 
 // NewState creates a new state to be passed into EvalRange. This will need to
 // be used at least once before you can query anything.
+
 func NewState() State {
 	state := State{
 		clusters:       map[string]Cluster{},
 		defaultCluster: DefaultCluster,
+		metrics:        metrics{},
 	}
+	state.metrics.initializedAt = time.Now()
 	state.ResetCache()
 	return state
 }
@@ -109,21 +135,133 @@ func (state *State) SetDefaultCluster(name string) {
 // necessarily a critical problem, often errors will be in obscure keys, but
 // you should probably try to fix them.
 func (state *State) PrimeCache() []error {
+	// Limiting parallelism to 8 (randomly chosen)
+	// splitting clusters in slices and spawn go routine for each
+	startTime := time.Now()
+	clusters := state.clusterNamesAsArray()
+	arrayOfClusterSlices := splitIntoSlices(clusters, 8)
+	var wg sync.WaitGroup
+	resultCh := make(chan mapset.Set, 8)
+	errorCh := make(chan []error, 8)
+	defer close(resultCh)
+	defer close(errorCh)
+	for _, slice := range arrayOfClusterSlices {
+		wg.Add(1)
+		go func(s []string) {
+			defer wg.Done()
+			res, err := buildPrimeClusterCacheForSlice(state, s)
+			resultCh <- res
+			errorCh <- err
+		}(slice)
+	}
+	done := make(chan interface{})
+	go func() {
+		wg.Wait()
+		// sleep makes thats buffers in resultCh and errorCh are read
+		// time.Sleep(1*time.Millisecond)
+		close(done)
+	}()
+	results := mapset.NewSet()
 	errors := []error{}
 
-	// TODO: See if this is faster if parallelized (need to add coordination to
-	// cache).
-	for name, cluster := range state.clusters {
-		context := newContext()
-		context.currentClusterName = name
-		for key, _ := range cluster {
-			err := clusterLookup(state, &context, key)
-			if err != nil {
-				errors = append(errors, err)
+Loop:
+	for {
+		select {
+		case r := <-resultCh:
+			results = results.Union(r)
+		case err := <-errorCh:
+			errors = append(errors, err...)
+		case <-done:
+			if len(resultCh) == 0 && len(errorCh) == 0 {
+				break Loop
 			}
 		}
 	}
+	// end of Loop:
+
+	wg.Wait()
+	state.metrics.buildTimeForClusterCache = time.Since(startTime).Seconds()
+	state.populateCachedCQRforSet(results)
+	state.metrics.buildTimeForCachedCQR =
+		time.Since(startTime).Seconds() - state.metrics.buildTimeForClusterCache
+	state.metrics.buildTimeForCache = time.Since(startTime).Seconds()
+	state.metrics.errorsDuringCacheBuild = len(errors)
+	state.metrics.cacheInitializedAt = time.Now()
 	return errors
+}
+
+// StateMetrics returns metrics related to state, cache as map[string]int64
+func (state *State) StateMetrics() map[string]int64 {
+	metrics := make(map[string]int64)
+	metrics["stateInitializedAt"] = state.metrics.initializedAt.Unix()
+	metrics["cacheInitializedAt"] = state.metrics.cacheInitializedAt.Unix()
+	metrics["numberOfClusters"] = int64(len(state.clusters))
+	metrics["numberOfCachedClusters"] = int64(state.clusterCache.Count())
+	metrics["numberOfcachedCQR"] = int64(state.cachedCQR.Count())
+	metrics["cacheTotalBuildTimeInSeconds"] = int64(state.metrics.buildTimeForCache)
+	metrics["cacheBuildTimeForClustersInSeconds"] = int64(state.metrics.buildTimeForClusterCache)
+	metrics["cacheBuildTimeForCQRInSeconds"] = int64(state.metrics.buildTimeForCachedCQR)
+	metrics["errorsDuringCacheBuild"] = int64(state.metrics.errorsDuringCacheBuild)
+	metrics["numberOfTruncatedResults"] = state.metrics.numberOfTruncatedResults
+	return metrics
+}
+
+// buildPrimeClusterCacheForSlice is used internally for building ClusterCache.
+// returns results of CLUSTER_NAME:CLUSTER , which is used for building cachedCQR
+// also returns array of errors encounter during parsing clusters
+func buildPrimeClusterCacheForSlice(state *State, clusters []string) (mapset.Set, []error) {
+	var errs []error
+	res := mapset.NewSet()
+	for _, clusterName := range clusters {
+		context := newContext()
+		context.currentClusterName = clusterName
+		for key, _ := range state.clusters[clusterName] {
+			err := clusterLookup(state, &context, key)
+			// we are interested only results for key CLUSTER
+			if key == "CLUSTER" {
+				res = res.Union(context.currentResult.Set)
+			}
+			if err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return res, errs
+}
+
+func (state *State) clusterNamesAsArray() []string {
+	i := 0
+	ret := make([]string, len(state.clusters))
+	for name := range state.clusters {
+		ret[i] = name
+		i++
+	}
+	return ret
+}
+
+// splices array into ~'count' of slices
+// if len(array) is less than count,
+// we splice array into slices of length 1
+// if len(array) is not multiple of count,
+// we end up returning more than 'count' number of slices
+func splitIntoSlices(array []string, count int) [][]string {
+	var ret [][]string
+	lengthOfArray := len(array)
+	if lengthOfArray == 0 {
+		return append(ret, array)
+	}
+	sliceLength := lengthOfArray / count
+	if sliceLength == 0 {
+		sliceLength = 1
+	}
+	for i := 0; i < lengthOfArray; i += sliceLength {
+		if i+sliceLength < lengthOfArray {
+			ret = append(ret, array[i:i+sliceLength])
+		} else {
+			ret = append(ret, array[i:lengthOfArray])
+		}
+	}
+	return ret
 }
 
 // ResetCache clears cached expansions. The public API for modifying state
@@ -132,6 +270,7 @@ func (state *State) PrimeCache() []error {
 func (state *State) ResetCache() {
 	// state.clusterCache = map[string]map[string]*Result{}
 	state.clusterCache = cmap.New()
+	state.cachedCQR = cmap.New()
 }
 
 // Query is the main interface to grange. See the main package documentation
@@ -151,6 +290,49 @@ func (state *State) Query(input string) (Result, error) {
 
 	context := newContext()
 	return evalRangeWithContext(input, state, &context)
+}
+
+// Used for populating state.cachedCQR
+// Go over all clusters in state.clusters, look if element is part of cluster definition,
+// if yes, add name of cluster to cachedCQR[element]
+// parse through all clusters before adding to state.cachedCQR
+// as a precaution, we do not want to cache empty results
+func (state *State) populateCachedCQRforSet(set mapset.Set) {
+	context := newContext()
+	// skip processing for already cached elements
+	notCached := make(map[string]Result)
+	for element := range set.Iter() {
+		if !state.cachedCQR.Has(element.(string)) {
+			notCached[element.(string)] = NewResult()
+		}
+	}
+
+	if len(notCached) == 0 {
+		return
+	}
+
+	for clusterName, _ := range state.clusters {
+		subContext := context.subCluster(clusterName)
+		clusterLookup(state, &subContext, "CLUSTER")
+		for key := range notCached {
+			if subContext.currentResult.Contains(key) {
+				notCached[key].Add(clusterName)
+			}
+		}
+	}
+	for key, val := range notCached {
+		if val.Cardinality() > 0 {
+			state.cachedCQR.Set(key, val)
+		}
+	}
+}
+
+func (state *State) addValueToCachedCQR(key string, value string) {
+	if tmp, ok := state.cachedCQR.Get(key); ok {
+		tmp.(Result).Add(value)
+	} else {
+		state.cachedCQR.Set(key, NewResult(value))
+	}
 }
 
 type tooManyResults struct{}
@@ -201,6 +383,7 @@ func evalRangeInplace(input string, state *State, context *evalContext) (err err
 			switch r.(type) {
 			case tooManyResults:
 				// No error returned, we just chop off the results
+				state.metrics.numberOfTruncatedResults += 1
 				err = nil
 			case error:
 				err = r.(error)
@@ -526,17 +709,7 @@ func (n nodeFunction) visit(state *State, context *evalContext) error {
 		}
 
 		lookingFor := subContext.currentResult
-
-		for clusterName, _ := range state.clusters {
-			subContext = context.subCluster(clusterName)
-			clusterLookup(state, &subContext, "CLUSTER")
-
-			for value := range subContext.resultIter() {
-				if lookingFor.Contains(value) {
-					context.addResult(clusterName)
-				}
-			}
-		}
+		context.addSetToResult(state.getResultsFromCachedCQRforSet(lookingFor))
 	default:
 		return errors.New(fmt.Sprintf("Unknown function: %s", n.name))
 	}
@@ -645,10 +818,31 @@ func (c *evalContext) addResult(value string) {
 	c.currentResult.Add(value)
 }
 
+func (c *evalContext) addSetToResult(set mapset.Set) {
+	if c.currentResult.Cardinality()+set.Cardinality() >= MaxResults {
+		panic(tooManyResults{})
+	}
+	for value := range set.Iter() {
+		c.currentResult.Add(value.(string))
+	}
+}
+
 func (c *evalContext) resultIter() <-chan interface{} {
 	return c.currentResult.Iter()
 }
 
 type evalNode interface {
 	visit(*State, *evalContext) error
+}
+
+func (state *State) getResultsFromCachedCQRforSet(set mapset.Set) Result {
+	context := newContext()
+	state.populateCachedCQRforSet(set)
+	for name := range set.Iter() {
+		if subResult, ok := state.cachedCQR.Get(name.(string)); ok {
+			//add subresults to context.currentResult
+			context.addSetToResult(subResult.(Result))
+		}
+	}
+	return context.currentResult
 }

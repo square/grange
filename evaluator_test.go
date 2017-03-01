@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"gopkg.in/deckarep/v1/golang-set"
 )
 
 func TestEmptyQuery(t *testing.T) {
@@ -231,6 +233,54 @@ func TestClusters(t *testing.T) {
 	}))
 }
 
+func TestClusterQueryCache(t *testing.T) {
+	state := multiCluster(map[string]Cluster{
+		"a": Cluster{"CLUSTER": []string{"two", "one"}},
+		"b": Cluster{"CLUSTER": []string{"$ALL"}, "ALL": []string{"one"}},
+		"c": Cluster{"CLUSTER": []string{"three"}},
+		"d": Cluster{"CLUSTER": []string{"four"}},
+	})
+	state.Query("clusters(one)")
+	expected_length := 1
+	actual_length_of_keys := len(state.cachedCQR.Keys())
+	if actual_length_of_keys != expected_length {
+		t.Errorf("Expected '%d' Key(s) in 'state.cachedCQR', but got %d",
+			expected_length, actual_length_of_keys)
+	}
+}
+
+func TestPopulateCachedCQRforSet(t *testing.T) {
+	state := multiCluster(map[string]Cluster{
+		"a": Cluster{"CLUSTER": []string{"two", "one"}},
+		"b": Cluster{"CLUSTER": []string{"$ALL"}, "ALL": []string{"one"}},
+		"c": Cluster{"CLUSTER": []string{"three"}},
+		"d": Cluster{"CLUSTER": []string{"four"}},
+	})
+	state.populateCachedCQRforSet(NewResult("one"))
+	tmp, _ := state.cachedCQR.Get("one")
+	actual := mapset.NewSetFromSlice(tmp.(Result).ToSlice())
+	expected := mapset.NewSetFromSlice([]interface{}{"a", "b"})
+	if !expected.Equal(actual) {
+		t.Errorf("Expected state.CachedCQR for 'one' to be : '%v', but got '%v'", expected, actual)
+	}
+}
+
+func TestClusterQueryCacheTwo(t *testing.T) {
+	state := multiCluster(map[string]Cluster{
+		"a": Cluster{"CLUSTER": []string{"two", "one"}},
+		"b": Cluster{"CLUSTER": []string{"$ALL"}, "ALL": []string{"one"}},
+		"c": Cluster{"CLUSTER": []string{"three"}},
+		"d": Cluster{"CLUSTER": []string{"four"}},
+	})
+	state.Query("clusters(one,two)")
+	expected_length := 2
+	actual_length_of_keys := len(state.cachedCQR.Keys())
+	if actual_length_of_keys != expected_length {
+		t.Errorf("Expected '%d' Key(s) in 'state.cachedCQR', but got %d",
+			expected_length, actual_length_of_keys)
+	}
+}
+
 func TestPrimeCacheReturnsErrors(t *testing.T) {
 	state := singleGroup("a", "(")
 	errors := state.PrimeCache()
@@ -245,9 +295,38 @@ func TestPrimeCacheReturnsErrors(t *testing.T) {
 	} else {
 		t.Errorf("Expected 1 error, got %d", len(errors))
 	}
-
 }
 
+func TestPrimeCachePopulatesCQR(t *testing.T) {
+	state := multiCluster(map[string]Cluster{
+		"a": Cluster{"CLUSTER": []string{"two", "one"}},
+		"b": Cluster{"CLUSTER": []string{"$ALL"}, "ALL": []string{"one"}},
+		"c": Cluster{"CLUSTER": []string{"three"}},
+		"d": Cluster{"CLUSTER": []string{"four"}},
+	})
+	state.PrimeCache()
+	expected := 4
+	actual := len(state.cachedCQR.Keys())
+	if actual != expected {
+		t.Errorf("Expected '%d' Key(s) in 'state.cachedCQR', but got %d",
+			expected, actual)
+	}
+}
+
+func TestState_StateMetrics(t *testing.T) {
+	state := multiCluster(map[string]Cluster{
+		"a": Cluster{"CLUSTER": []string{"two", "one"}},
+		"b": Cluster{"CLUSTER": []string{"$ALL"}, "ALL": []string{"one"}},
+		"c": Cluster{"CLUSTER": []string{"three"}},
+		"d": Cluster{"CLUSTER": []string{"four"}},
+	})
+	state.PrimeCache()
+	metrics := state.StateMetrics()
+	if metrics["numberOfcachedCQR"] != 4 {
+		t.Errorf("Expected metrics to report 4, key, instead got : %v", metrics["state.cache.numberOfCQR"])
+	}
+
+}
 func TestCycle(t *testing.T) {
 	testError2(t, "Query exceeded maximum recursion limit", "%a",
 		multiCluster(map[string]Cluster{
