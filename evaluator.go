@@ -135,14 +135,15 @@ func (state *State) SetDefaultCluster(name string) {
 // necessarily a critical problem, often errors will be in obscure keys, but
 // you should probably try to fix them.
 func (state *State) PrimeCache() []error {
-	// Limiting parallelism to 8 (randomly chosen)
+	// Limiting parallelism to 2
 	// splitting clusters in slices and spawn go routine for each
 	startTime := time.Now()
 	clusters := state.clusterNamesAsArray()
-	arrayOfClusterSlices := splitIntoSlices(clusters, 8)
+	parallelism := 2
+	arrayOfClusterSlices := splitIntoSlices(clusters, parallelism)
 	var wg sync.WaitGroup
-	resultCh := make(chan mapset.Set, 8)
-	errorCh := make(chan []error, 8)
+	resultCh := make(chan mapset.Set, parallelism)
+	errorCh := make(chan []error, parallelism)
 	defer close(resultCh)
 	defer close(errorCh)
 	for _, slice := range arrayOfClusterSlices {
