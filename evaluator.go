@@ -87,6 +87,9 @@ var (
 	// The default cluster for new states, used by @ and ? syntax. Can be changed
 	// per-state using SetDefaultCluster.
 	DefaultCluster = "GROUPS"
+
+	// Parallelism to be used while building primeCache
+	primeCacheParallelismFactor = 2
 )
 
 // Clusters is a getter for all clusters that have been added to the state.
@@ -135,14 +138,14 @@ func (state *State) SetDefaultCluster(name string) {
 // necessarily a critical problem, often errors will be in obscure keys, but
 // you should probably try to fix them.
 func (state *State) PrimeCache() []error {
-	// Limiting parallelism to 8 (randomly chosen)
+	// Limiting parallelism to 2
 	// splitting clusters in slices and spawn go routine for each
 	startTime := time.Now()
 	clusters := state.clusterNamesAsArray()
-	arrayOfClusterSlices := splitIntoSlices(clusters, 8)
+	arrayOfClusterSlices := splitIntoSlices(clusters, primeCacheParallelismFactor)
 	var wg sync.WaitGroup
-	resultCh := make(chan mapset.Set, 8)
-	errorCh := make(chan []error, 8)
+	resultCh := make(chan mapset.Set, primeCacheParallelismFactor)
+	errorCh := make(chan []error, primeCacheParallelismFactor)
 	defer close(resultCh)
 	defer close(errorCh)
 	for _, slice := range arrayOfClusterSlices {
