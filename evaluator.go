@@ -713,6 +713,34 @@ func (n nodeFunction) visit(state *State, context *evalContext) error {
 
 		lookingFor := subContext.currentResult
 		context.addSetToResult(state.getResultsFromCachedCQRforSet(lookingFor))
+	case "mem":
+		if err := n.verifyParams(2); err != nil {
+			return err
+		}
+
+		clusterContext := context.sub()
+		valueContext := context.sub()
+
+		if err := n.params[0].(evalNode).visit(state, &clusterContext); err != nil {
+			return err
+		}
+		if err := n.params[1].(evalNode).visit(state, &valueContext); err != nil {
+			return err
+		}
+
+		for clusterName := range state.clusters {
+			subContext := context.subCluster(clusterName)
+			clusterLookup(state, &subContext, "KEYS")
+
+			for _, clusterKey := range subContext.currentResult.Set.ToSlice() {
+				clusterKeyContext := subContext.sub()
+				clusterLookup(state, &clusterKeyContext, clusterKey.(string))
+
+				if clusterKeyContext.currentResult.Set.Intersect(valueContext.currentResult.Set).Cardinality() > 0 {
+					context.addResult(clusterKey.(string))
+				}
+			}
+		}
 	default:
 		return errors.New(fmt.Sprintf("Unknown function: %s", n.name))
 	}
