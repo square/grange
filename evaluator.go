@@ -455,9 +455,13 @@ func (n nodeLocalClusterLookup) visit(state *State, context *evalContext) error 
 	}
 
 	for key := range subContext.resultIter() {
-		evalErr = clusterLookup(state, context, key.(string))
-		if evalErr != nil {
-			return evalErr
+		if context.currentClusterName == "" {
+			context.addResult("$" + key.(string))
+		} else {
+			evalErr = clusterLookup(state, context, key.(string))
+			if evalErr != nil {
+				return evalErr
+			}
 		}
 	}
 
@@ -639,7 +643,7 @@ func (n nodeGroupQuery) visit(state *State, context *evalContext) error {
 		if tmp, ok := cachedClusterDetails.Get(key); ok {
 			results = tmp.(*Result)
 		} else {
-			subContext := context.sub()
+			subContext := context.subCluster(state.defaultCluster)
 			for _, value := range group {
 				err := evalRangeInplace(value, state, &subContext)
 				if err != nil {
