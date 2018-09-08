@@ -24,6 +24,9 @@ var PendingList = []string{
 	// https://github.com/square/grange/issues/40
 	"spec/expand/numeric_expansion.spec:55",
 	"spec/expand/numeric_expansion.spec:61",
+
+	// https://github.com/square/grange/issues/41
+	"spec/expand/regex.spec:10",
 }
 
 // if non-empty, only run these range-specs. Ideally this would be set as a CLI
