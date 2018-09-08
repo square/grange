@@ -3,7 +3,6 @@ package grange
 import (
 	"bufio"
 	"fmt"
-	"gopkg.in/v1/yaml"
 	"io/ioutil"
 	"os"
 	"path"
@@ -11,6 +10,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"gopkg.in/v1/yaml"
 )
 
 // range-specs that are not currently implemented
@@ -19,6 +20,10 @@ var PendingList = []string{
 	"spec/expand/simple/lookup.spec:24",
 	"spec/expand/simple/lookup.spec:29",
 }
+
+// if non-empty, only run these range-specs. Ideally this would be set as a CLI
+// flag.
+var FocusList = []string{}
 
 func TestExpand(t *testing.T) {
 	spec_dir := os.Getenv("RANGE_SPEC_PATH")
@@ -69,25 +74,27 @@ func runExpandSpec(t *testing.T, spec RangeSpec) {
 		state.AddCluster(name, c)
 	}
 
-	actual, err := state.Query(spec.expr)
+	if len(FocusList) == 0 || spec.Ignore(FocusList) {
+		actual, err := state.Query(spec.expr)
 
-	if err != nil {
-		if spec.Ignore(PendingList) {
-			fmt.Printf("PENDING %s\n%s\n\n", spec.String(), err)
+		if err != nil {
+			if spec.Ignore(PendingList) {
+				fmt.Printf("PENDING %s\n%s\n\n", spec.String(), err)
+			} else {
+				t.Errorf("FAILED %s\n%s", spec.String(), err)
+			}
+		} else if !reflect.DeepEqual(actual, spec.results) {
+			if spec.Ignore(PendingList) {
+				fmt.Printf("PENDING %s\n got: %s\nwant: %s\n\n",
+					spec.String(), actual, spec.results)
+			} else {
+				t.Errorf("FAILED %s\n got: %s\nwant: %s",
+					spec.String(), actual, spec.results)
+			}
 		} else {
-			t.Errorf("FAILED %s\n%s", spec.String(), err)
-		}
-	} else if !reflect.DeepEqual(actual, spec.results) {
-		if spec.Ignore(PendingList) {
-			fmt.Printf("PENDING %s\n got: %s\nwant: %s\n\n",
-				spec.String(), actual, spec.results)
-		} else {
-			t.Errorf("FAILED %s\n got: %s\nwant: %s",
-				spec.String(), actual, spec.results)
-		}
-	} else {
-		if spec.Ignore(PendingList) {
-			t.Errorf("PASSED but listed as PENDING %s", spec.String())
+			if spec.Ignore(PendingList) {
+				t.Errorf("PASSED but listed as PENDING %s", spec.String())
+			}
 		}
 	}
 }
