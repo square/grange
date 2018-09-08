@@ -29,8 +29,13 @@ var PendingList = []string{
 	"spec/expand/numeric_expansion.spec:55",
 	"spec/expand/numeric_expansion.spec:61",
 
+	// Using regex as LHS of set operation
 	// https://github.com/square/grange/issues/41
 	"spec/expand/regex.spec:10",
+
+	// Better parsing of expressions following %
+	// https://github.com/square/grange/issues/43
+	"spec/expand/clusters/cluster_func.spec:1",
 }
 
 // if non-empty, only run these range-specs. Ideally this would be set as a CLI
