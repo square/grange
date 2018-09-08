@@ -133,7 +133,7 @@ func yamlToCluster(clusterName string, yaml map[string]interface{}) Cluster {
 		case int:
 			c[key] = []string{fmt.Sprintf("%d", value.(int))}
 		case bool:
-			c[key] = []string{fmt.Sprintf("%s", value.(bool))}
+			c[key] = []string{fmt.Sprintf("%s", value)}
 		case []interface{}:
 			result := []string{}
 

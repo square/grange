@@ -1,7 +1,14 @@
 package grange
 
+import "fmt"
+import "os"
+
 func (r *rangeQuery) popNode() parserNode {
 	l := len(r.nodeStack)
+	if l == 0 {
+		fmt.Fprintf(os.Stderr, "Tried to popNode when stack is empty. Returning null, but probably hiding a bug somewhere.\n")
+		return nodeNull{}
+	}
 	result := r.nodeStack[l-1]
 	r.nodeStack = r.nodeStack[:l-1]
 	return result
@@ -37,7 +44,12 @@ func (r *rangeQuery) addFuncArg() {
 		// this.
 		r.pushNode(paramNode)
 	default:
-		funcNode = r.nodeStack[len(r.nodeStack)-1]
+		l := len(r.nodeStack)
+		if l == 0 {
+			fmt.Fprintf(os.Stderr, "Tried to addFuncArg when stack is empty. Returning null, but probably hiding a bug somewhere.\n")
+			return
+		}
+		funcNode = r.nodeStack[l-1]
 		fn := funcNode.(nodeFunction)
 		fn.params = append(fn.params, paramNode)
 		r.nodeStack[len(r.nodeStack)-1] = fn
