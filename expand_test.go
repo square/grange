@@ -16,9 +16,13 @@ import (
 
 // range-specs that are not currently implemented
 var PendingList = []string{
+	// All related to brackets inside identifiers: %a{b}c
+	// https://github.com/square/grange/issues/42
 	"spec/expand/simple/lookup.spec:19",
 	"spec/expand/simple/lookup.spec:24",
 	"spec/expand/simple/lookup.spec:29",
+	"spec/expand/default_cluster/mem_function.spec:5",
+	"spec/expand/default_cluster/at_operator.spec:8",
 
 	// Probably requires rewriting numeric expansion implementation to not use a regex.
 	// https://github.com/square/grange/issues/40
