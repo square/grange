@@ -19,6 +19,11 @@ var PendingList = []string{
 	"spec/expand/simple/lookup.spec:19",
 	"spec/expand/simple/lookup.spec:24",
 	"spec/expand/simple/lookup.spec:29",
+
+	// Probably requires rewriting numeric expansion implementation to not use a regex.
+	// https://github.com/square/grange/issues/40
+	"spec/expand/numeric_expansion.spec:55",
+	"spec/expand/numeric_expansion.spec:61",
 }
 
 // if non-empty, only run these range-specs. Ideally this would be set as a CLI
