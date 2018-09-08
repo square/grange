@@ -71,12 +71,12 @@ var (
 	// Queries longer than this will be rejected. This limit also applies to
 	// cluster and group names and values. Combined with MaxResults, this limits
 	// result sizes to approximately 4MB.
-	MaxQuerySize = 4000
+	MaxQuerySize = 16000
 
 	// The maximum number of results a query can return. Execution will be
 	// short-circuited once this many results have been gathered. No error will
 	// be returned.
-	MaxResults = 10000
+	MaxResults = 20000
 
 	// Maximum number of subqueries that will be evaluated, including evaluation
 	// of cluster values. If this is exceeded, an error will be returned.
