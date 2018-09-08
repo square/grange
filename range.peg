@@ -19,7 +19,9 @@ rangeexpr <- space
     / localkey
     / regex
     / value
+    / emptybrackets
     / brackets
+    / emptybraces
     / { p.addBraceStart() } braces
     )
     space
@@ -28,6 +30,11 @@ combinators <- space (union / intersect / exclude / braces)
 intersect   <- '&' rangeexpr  { p.addOperator(operatorIntersect) } combinators?
 exclude     <- '-' rangeexpr  { p.addOperator(operatorSubtract) } combinators?
 union       <- ',' rangeexpr  { p.addOperator(operatorUnion) } combinators?
+
+# This is pretty gross and there is probably a much nicer way to do it.
+# See https://github.com/square/grange/issues/37
+emptybraces   <- '{' space '}' { p.pushNode(nodeNull{}) }
+emptybrackets <- '(' space ')' { p.pushNode(nodeNull{}) }
 
 # See https://github.com/pointlander/peg/issues/21 for context
 braces   <- '{' combinedexpr? '}' rangeexpr? { p.addBraces() }
