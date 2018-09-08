@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"sync"
 
@@ -584,6 +585,8 @@ func (n nodeText) visit(state *State, context *evalContext) error {
 	rightN := match[4]
 	trailing := match[5]
 
+	// Equalize the numeric portions. n10..2 will initally be {"n", "10", 2"}, but
+	// needs to be converted to {"n1", "0", "2"}.
 	for {
 		if len(leftN) <= len(rightN) {
 			break
@@ -594,8 +597,9 @@ func (n nodeText) visit(state *State, context *evalContext) error {
 	}
 
 	// a1..a4 is valid, a1..b4 is invalid
-	if len(rightStr) != 0 && leftStrToMatch != rightStr {
+	if !strings.HasSuffix(leftStrToMatch, rightStr) {
 		context.addResult(n.val)
+		return nil
 	}
 
 	width := strconv.Itoa(len(leftN))
