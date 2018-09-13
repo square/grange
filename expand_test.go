@@ -3,7 +3,6 @@ package grange
 import (
 	"bufio"
 	"fmt"
-	"gopkg.in/v1/yaml"
 	"io/ioutil"
 	"os"
 	"path"
@@ -11,14 +10,37 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"gopkg.in/v1/yaml"
 )
 
 // range-specs that are not currently implemented
 var PendingList = []string{
+	// All related to brackets inside identifiers: %a{b}c
+	// https://github.com/square/grange/issues/42
 	"spec/expand/simple/lookup.spec:19",
 	"spec/expand/simple/lookup.spec:24",
 	"spec/expand/simple/lookup.spec:29",
+	"spec/expand/default_cluster/mem_function.spec:5",
+	"spec/expand/default_cluster/at_operator.spec:8",
+
+	// Probably requires rewriting numeric expansion implementation to not use a regex.
+	// https://github.com/square/grange/issues/40
+	"spec/expand/numeric_expansion.spec:55",
+	"spec/expand/numeric_expansion.spec:61",
+
+	// Using regex as LHS of set operation
+	// https://github.com/square/grange/issues/41
+	"spec/expand/regex.spec:10",
+
+	// Better parsing of expressions following %
+	// https://github.com/square/grange/issues/43
+	"spec/expand/clusters/cluster_func.spec:1",
 }
+
+// if non-empty, only run these range-specs. Ideally this would be set as a CLI
+// flag.
+var FocusList = []string{}
 
 func TestExpand(t *testing.T) {
 	spec_dir := os.Getenv("RANGE_SPEC_PATH")
@@ -69,25 +91,27 @@ func runExpandSpec(t *testing.T, spec RangeSpec) {
 		state.AddCluster(name, c)
 	}
 
-	actual, err := state.Query(spec.expr)
+	if len(FocusList) == 0 || spec.Ignore(FocusList) {
+		actual, err := state.Query(spec.expr)
 
-	if err != nil {
-		if spec.Ignore(PendingList) {
-			fmt.Printf("PENDING %s\n%s\n\n", spec.String(), err)
+		if err != nil {
+			if spec.Ignore(PendingList) {
+				fmt.Printf("PENDING %s\n%s\n\n", spec.String(), err)
+			} else {
+				t.Errorf("FAILED %s\n%s", spec.String(), err)
+			}
+		} else if !reflect.DeepEqual(actual, spec.results) {
+			if spec.Ignore(PendingList) {
+				fmt.Printf("PENDING %s\n got: %s\nwant: %s\n\n",
+					spec.String(), actual, spec.results)
+			} else {
+				t.Errorf("FAILED %s\n got: %s\nwant: %s",
+					spec.String(), actual, spec.results)
+			}
 		} else {
-			t.Errorf("FAILED %s\n%s", spec.String(), err)
-		}
-	} else if !reflect.DeepEqual(actual, spec.results) {
-		if spec.Ignore(PendingList) {
-			fmt.Printf("PENDING %s\n got: %s\nwant: %s\n\n",
-				spec.String(), actual, spec.results)
-		} else {
-			t.Errorf("FAILED %s\n got: %s\nwant: %s",
-				spec.String(), actual, spec.results)
-		}
-	} else {
-		if spec.Ignore(PendingList) {
-			t.Errorf("PASSED but listed as PENDING %s", spec.String())
+			if spec.Ignore(PendingList) {
+				t.Errorf("PASSED but listed as PENDING %s", spec.String())
+			}
 		}
 	}
 }

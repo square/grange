@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"sync"
 
@@ -454,9 +455,13 @@ func (n nodeLocalClusterLookup) visit(state *State, context *evalContext) error 
 	}
 
 	for key := range subContext.resultIter() {
-		evalErr = clusterLookup(state, context, key.(string))
-		if evalErr != nil {
-			return evalErr
+		if context.currentClusterName == "" {
+			context.addResult("$" + key.(string))
+		} else {
+			evalErr = clusterLookup(state, context, key.(string))
+			if evalErr != nil {
+				return evalErr
+			}
 		}
 	}
 
@@ -584,6 +589,8 @@ func (n nodeText) visit(state *State, context *evalContext) error {
 	rightN := match[4]
 	trailing := match[5]
 
+	// Equalize the numeric portions. n10..2 will initally be {"n", "10", 2"}, but
+	// needs to be converted to {"n1", "0", "2"}.
 	for {
 		if len(leftN) <= len(rightN) {
 			break
@@ -594,8 +601,9 @@ func (n nodeText) visit(state *State, context *evalContext) error {
 	}
 
 	// a1..a4 is valid, a1..b4 is invalid
-	if len(rightStr) != 0 && leftStrToMatch != rightStr {
+	if !strings.HasSuffix(leftStrToMatch, rightStr) {
 		context.addResult(n.val)
+		return nil
 	}
 
 	width := strconv.Itoa(len(leftN))
@@ -635,7 +643,7 @@ func (n nodeGroupQuery) visit(state *State, context *evalContext) error {
 		if tmp, ok := cachedClusterDetails.Get(key); ok {
 			results = tmp.(*Result)
 		} else {
-			subContext := context.sub()
+			subContext := context.subCluster(state.defaultCluster)
 			for _, value := range group {
 				err := evalRangeInplace(value, state, &subContext)
 				if err != nil {
@@ -713,6 +721,34 @@ func (n nodeFunction) visit(state *State, context *evalContext) error {
 
 		lookingFor := subContext.currentResult
 		context.addSetToResult(state.getResultsFromCachedCQRforSet(lookingFor))
+	case "mem":
+		if err := n.verifyParams(2); err != nil {
+			return err
+		}
+
+		clusterContext := context.sub()
+		valueContext := context.sub()
+
+		if err := n.params[0].(evalNode).visit(state, &clusterContext); err != nil {
+			return err
+		}
+		if err := n.params[1].(evalNode).visit(state, &valueContext); err != nil {
+			return err
+		}
+
+		for clusterName := range state.clusters {
+			subContext := context.subCluster(clusterName)
+			clusterLookup(state, &subContext, "KEYS")
+
+			for _, clusterKey := range subContext.currentResult.Set.ToSlice() {
+				clusterKeyContext := subContext.sub()
+				clusterLookup(state, &clusterKeyContext, clusterKey.(string))
+
+				if clusterKeyContext.currentResult.Set.Intersect(valueContext.currentResult.Set).Cardinality() > 0 {
+					context.addResult(clusterKey.(string))
+				}
+			}
+		}
 	default:
 		return errors.New(fmt.Sprintf("Unknown function: %s", n.name))
 	}
