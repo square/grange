@@ -11,8 +11,8 @@ import (
 
 	"time"
 
+	"github.com/deckarep/golang-set"
 	"github.com/orcaman/concurrent-map"
-	"gopkg.in/deckarep/v1/golang-set"
 )
 
 // State holds data that queries operate over. Queries in grange are
