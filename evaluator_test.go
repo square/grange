@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"gopkg.in/deckarep/v1/golang-set"
+	"github.com/deckarep/golang-set"
 )
 
 func TestEmptyQuery(t *testing.T) {
