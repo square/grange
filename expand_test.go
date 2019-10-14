@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"gopkg.in/v1/yaml"
+	"gopkg.in/yaml.v1"
 )
 
 // range-specs that are not currently implemented
